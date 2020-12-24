@@ -1545,6 +1545,7 @@ void AALSBaseCharacter::JumpPressedAction()
 	// Jump Action: Press "Jump Action" to end the ragdoll if ragdolling, check for a mantle if grounded or in air,
 	// stand up if crouching, or jump if standing.
 
+	//MyCharacterMovementComponent->SetGravityDirection(FVector(1.f,0.f,0.f));
 	if (MovementAction == EALSMovementAction::None)
 	{
 		if (MovementState == EALSMovementState::Grounded)

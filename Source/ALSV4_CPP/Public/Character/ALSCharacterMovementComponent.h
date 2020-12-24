@@ -98,6 +98,8 @@ public:
 	virtual bool IsWithinEdgeTolerance(const FVector& CapsuleLocation, const FVector& TestImpactPoint, const float CapsuleRadius) const override;
 	// End UCharacterMovementComponent overrides
 
+	UFUNCTION(Category = "Pawn|Components|CharacterMovement", BlueprintCallable)
+		virtual void SetGravityDirection(FVector NewGravityDirection);
 protected:
 	// Return the normalized direction of the current gravity.
 	// @note Could return zero gravity.
@@ -110,8 +112,7 @@ protected:
 	// Set a custom gravity direction; use 0, 0, 0 to remove any custom direction.
 	// @note It can be influenced by GravityScale.
 	// @param NewGravityDirection - New gravity direction, assumes it isn't normalize
-	UFUNCTION(Category = "Pawn|Components|CharacterMovement", BlueprintCallable)
-		virtual void SetGravityDirection(FVector NewGravityDirection);
+	
 
 	// Begin UCharacterMovementComponent overrides
 	virtual void PhysFlying(float deltaTime, int32 Iterations) override;
@@ -125,7 +126,7 @@ protected:
 	virtual void MaintainHorizontalGroundVelocity() override;
 	virtual float SlideAlongSurface(const FVector& Delta, float Time, const FVector& Normal, FHitResult& Hit, bool bHandleImpact) override;
 	virtual void SetPostLandedPhysics(const FHitResult& Hit) override;
-	virtual void PhysWalking(float deltaTime, int32 Iterations) override;
+	//virtual void PhysWalking(float deltaTime, int32 Iterations) override;
 	virtual FVector ComputeGroundMovementDelta(const FVector& Delta, const FHitResult& RampHit, const bool bHitFromLineTrace) const override;
 	virtual void MoveAlongFloor(const FVector& InVelocity, float DeltaSeconds, FStepDownResult* OutStepDownResult = NULL) override;
 	virtual void SimulateMovement(float DeltaTime) override;

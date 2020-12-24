@@ -337,6 +337,7 @@ void UALSCharacterMovementComponent::OnMovementModeChanged(EMovementMode Previou
 	CharacterOwner->OnMovementModeChanged(PreviousMovementMode, PreviousCustomMode);
 }
 
+
 void UALSCharacterMovementComponent::PerformMovement(float DeltaTime)
 {
 	if (!HasValidData())
@@ -603,7 +604,7 @@ void UALSCharacterMovementComponent::SetPostLandedPhysics(const FHitResult& Hit)
 		}
 	}
 }
-
+/**
 void UALSCharacterMovementComponent::PhysWalking(float deltaTime, int32 Iterations)
 {
 	//SCOPE_CYCLE_COUNTER(STAT_CharPhysWalking);
@@ -817,7 +818,7 @@ void UALSCharacterMovementComponent::PhysWalking(float deltaTime, int32 Iteratio
 		MaintainHorizontalGroundVelocity();
 	}
 }
-
+**/
 FVector UALSCharacterMovementComponent::ComputeGroundMovementDelta(const FVector& Delta, const FHitResult& RampHit, const bool bHitFromLineTrace) const	// OK
 {
 	const FVector FloorNormal = RampHit.ImpactNormal;
