@@ -36,7 +36,7 @@ public:
 	AALSBaseCharacter(const FObjectInitializer& ObjectInitializer);
 
 	UFUNCTION(BlueprintCallable, Category= "Movement")
-	FORCEINLINE class UALSCharacterMovementComponent* GetMyMovementComponent() const
+		FORCEINLINE class UALSCharacterMovementComponent* GetMyMovementComponent() const
 	{
 		return MyCharacterMovementComponent;
 	}
@@ -456,7 +456,7 @@ protected:
 protected:
 	/* Custom movement component*/
 	UPROPERTY()
-	UALSCharacterMovementComponent* MyCharacterMovementComponent;
+		UALSCharacterMovementComponent* MyCharacterMovementComponent;
 
 	/** Input */
 
