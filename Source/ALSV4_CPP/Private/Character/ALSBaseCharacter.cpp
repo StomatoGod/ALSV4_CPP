@@ -23,6 +23,7 @@
 #include "TimerManager.h"
 #include "Net/UnrealNetwork.h"
 
+
 AALSBaseCharacter::AALSBaseCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UALSCharacterMovementComponent>(CharacterMovementComponentName))
 {
@@ -185,6 +186,11 @@ void AALSBaseCharacter::SetAimYawRate(float NewAimYawRate)
 	MainAnimInstance->GetCharacterInformationMutable().AimYawRate = AimYawRate;
 }
 
+void AALSBaseCharacter::SetGravityDirection(FVector Direction)
+{
+	MyCharacterMovementComponent->SetGravityDirection(Direction);
+}
+
 void AALSBaseCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
@@ -212,6 +218,9 @@ void AALSBaseCharacter::Tick(float DeltaTime)
 		RagdollUpdate(DeltaTime);
 	}
 
+	
+
+	//UE_LOG(LogTemp, Log, TEXT("Character overlapNum: %d"), Overlaps.Num());
 	// Cache values
 	PreviousVelocity = GetVelocity();
 	PreviousAimYaw = AimingRotation.Yaw;
@@ -1512,9 +1521,10 @@ void AALSBaseCharacter::PlayerForwardMovementInput(float Value)
 	if (MovementState == EALSMovementState::Grounded || MovementState == EALSMovementState::InAir)
 	{
 		// Default camera relative movement behavior
-		const float Scale = UALSMathLibrary::FixDiagonalGamepadValues(Value, GetInputAxisValue("MoveRight/Left")).Key;
-		const FRotator DirRotator(0.0f, AimingRotation.Yaw, 0.0f);
-		AddMovementInput(UKismetMathLibrary::GetForwardVector(DirRotator), Scale);
+		//const float Scale = UALSMathLibrary::FixDiagonalGamepadValues(Value, GetInputAxisValue("MoveRight/Left")).Key;
+		//const FRotator DirRotator(0.0f, AimingRotation.Yaw, 0.0f);
+		//AddMovementInput(UKismetMathLibrary::GetForwardVector(DirRotator), Scale);
+		AddMovementInput(this->GetCapsuleComponent()->GetForwardVector(), Value);
 	}
 }
 
@@ -1523,10 +1533,11 @@ void AALSBaseCharacter::PlayerRightMovementInput(float Value)
 	if (MovementState == EALSMovementState::Grounded || MovementState == EALSMovementState::InAir)
 	{
 		// Default camera relative movement behavior
-		const float Scale = UALSMathLibrary::FixDiagonalGamepadValues(GetInputAxisValue("MoveForward/Backwards"), Value)
-			.Value;
-		const FRotator DirRotator(0.0f, AimingRotation.Yaw, 0.0f);
-		AddMovementInput(UKismetMathLibrary::GetRightVector(DirRotator), Scale);
+		//const float Scale = UALSMathLibrary::FixDiagonalGamepadValues(GetInputAxisValue("MoveForward/Backwards"), Value)
+		//	.Value;
+		//const FRotator DirRotator(0.0f, AimingRotation.Yaw, 0.0f);
+		//AddMovementInput(UKismetMathLibrary::GetRightVector(DirRotator), Scale);
+		AddMovementInput(this->GetCapsuleComponent()->GetRightVector(), Value);
 	}
 }
 
@@ -1545,7 +1556,7 @@ void AALSBaseCharacter::JumpPressedAction()
 	// Jump Action: Press "Jump Action" to end the ragdoll if ragdolling, check for a mantle if grounded or in air,
 	// stand up if crouching, or jump if standing.
 
-	//MyCharacterMovementComponent->SetGravityDirection(FVector(1.f,0.f,0.f));
+	
 	if (MovementAction == EALSMovementAction::None)
 	{
 		if (MovementState == EALSMovementState::Grounded)
@@ -1612,6 +1623,8 @@ void AALSBaseCharacter::AimReleasedAction()
 
 void AALSBaseCharacter::CameraPressedAction()
 {
+
+	UE_LOG(LogTemp, Warning, TEXT("Camera Pressed"));
 	UWorld* World = GetWorld();
 	check(World);
 	CameraActionPressedTime = World->GetTimeSeconds();
@@ -1714,15 +1727,15 @@ void AALSBaseCharacter::WalkPressedAction()
 void AALSBaseCharacter::RagdollPressedAction()
 {
 	// Ragdoll Action: Press "Ragdoll Action" to toggle the ragdoll state on or off.
-
-	if (GetMovementState() == EALSMovementState::Ragdoll)
-	{
-		ReplicatedRagdollEnd();
-	}
-	else
-	{
-		ReplicatedRagdollStart();
-	}
+	MyCharacterMovementComponent->SetGravityDirection(FVector(0.f, 1.f, 0.f));
+	//if (GetMovementState() == EALSMovementState::Ragdoll)
+	//{
+	//	ReplicatedRagdollEnd();
+	//}
+	//else
+	//{
+	//	ReplicatedRagdollStart();
+//	}
 }
 
 void AALSBaseCharacter::VelocityDirectionPressedAction()

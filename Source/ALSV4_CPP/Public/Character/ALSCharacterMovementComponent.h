@@ -118,7 +118,7 @@ protected:
 	virtual void PhysFlying(float deltaTime, int32 Iterations) override;
 	virtual float BoostAirControl(float DeltaTime, float TickAirControl, const FVector& FallAcceleration) override;
 	virtual void OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode) override;
-	virtual void PerformMovement(float DeltaTime) override;
+	//virtual void PerformMovement(float DeltaTime) override;
 	virtual void HandleImpact(const FHitResult& Hit, float TimeSlice = 0.f, const FVector& MoveDelta = FVector::ZeroVector) override;
 	virtual void ProcessLanded(const FHitResult& Hit, float remainingTime, int32 Iterations) override;
 
@@ -143,7 +143,8 @@ protected:
 //private:
 	FVector GetGravity() const;
 	FVector GetComponentDesiredAxisZ() const;
-	void UpdateComponentRotation();
+
+	void UpdateComponentRotation() override;
 	FQuat GetCapsuleRotation() const;
 	FVector GetCapsuleAxisX() const;
 	FVector GetCapsuleAxisZ() const;

@@ -22,3 +22,20 @@ void AALSPlayerController::OnRestartPawn(APawn* NewPawn)
 		CastedMgr->OnPossess(PossessedCharacter);
 	}
 }
+
+void AALSPlayerController::PlayerTick(float DeltaTime)
+{
+	Super::PlayerTick(DeltaTime);
+	// [Client] Update Rotation
+
+	AALSCharacter* const Dude = Cast<AALSCharacter>(GetPawn());
+	if (Dude != nullptr)
+	{
+		//UE_LOG(LogClass, Error, TEXT(" Player Controller: RotationInput.YAW: %f"), RotationInput.Yaw)
+		RotationInputStored += RotationInput;
+		//UpdateMouseLook(DeltaTime);
+
+		//	UE_LOG(LogClass, Error, TEXT(" RotationInput.YAW: %f"), RotationInput.Yaw);
+	}
+	//PlayerCameraManager->bUseClientSideCameraUpdates = true;
+}

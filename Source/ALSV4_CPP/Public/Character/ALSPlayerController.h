@@ -22,9 +22,11 @@ class ALSV4_CPP_API AALSPlayerController : public APlayerController
 {
 	GENERATED_BODY()
 
+		virtual void PlayerTick(float Deltatime) override;
+
 public:
 	void OnRestartPawn(APawn* NewPawn);
-
+	FRotator RotationInputStored;
 private:
 	/** Main character reference */
 	UPROPERTY()

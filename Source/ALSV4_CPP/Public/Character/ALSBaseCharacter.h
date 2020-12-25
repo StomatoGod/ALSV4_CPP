@@ -41,6 +41,8 @@ public:
 		return MyCharacterMovementComponent;
 	}
 
+	void SetGravityDirection(FVector Direction);
+
 	virtual void Tick(float DeltaTime) override;
 
 	virtual void BeginPlay() override;

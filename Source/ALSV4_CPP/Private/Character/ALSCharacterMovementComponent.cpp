@@ -3,13 +3,14 @@
 // Original Author: Haziq Fadhil
 // Contributors:    Doga Can Yanikoglu
 
+#include "Character/ALSCharacterMovementComponent.h"
+#include "Character/ALSPlayerController.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/PhysicsVolume.h"
 #include "GameFramework/Character.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "DrawDebugHelpers.h"
-#include "Character/ALSCharacterMovementComponent.h"
 #include "Character/ALSBaseCharacter.h"
 
 const float VERTICAL_SLOPE_NORMAL_Z = 0.001f; // Slope is vertical if Abs(Normal.Z) <= this threshold. Accounts for precision problems that sometimes angle normals slightly off horizontal for vertical surface.
@@ -43,7 +44,7 @@ void UALSCharacterMovementComponent::OnMovementUpdated(float DeltaTime, const FV
 {
 	Super::OnMovementUpdated(DeltaTime, OldLocation, OldVelocity);
 
-	UE_LOG(LogTemp, Error, TEXT("ORIGINAL MOVEMENT CALLED"));
+	//UE_LOG(LogTemp, Error, TEXT("ORIGINAL MOVEMENT CALLED"));
 
 	if (!CharacterOwner)
 	{
@@ -337,7 +338,7 @@ void UALSCharacterMovementComponent::OnMovementModeChanged(EMovementMode Previou
 	CharacterOwner->OnMovementModeChanged(PreviousMovementMode, PreviousCustomMode);
 }
 
-
+/**
 void UALSCharacterMovementComponent::PerformMovement(float DeltaTime)
 {
 	if (!HasValidData())
@@ -480,7 +481,7 @@ void UALSCharacterMovementComponent::PerformMovement(float DeltaTime)
 
 	LastUpdateLocation = UpdatedComponent ? UpdatedComponent->GetComponentLocation() : FVector::ZeroVector;
 }
-
+**/
 void UALSCharacterMovementComponent::HandleImpact(const FHitResult& Hit, float TimeSlice /*= 0.f*/, const FVector& MoveDelta /*= FVector::ZeroVector*/)
 {
 	if (CharacterOwner)
@@ -604,6 +605,7 @@ void UALSCharacterMovementComponent::SetPostLandedPhysics(const FHitResult& Hit)
 		}
 	}
 }
+
 /**
 void UALSCharacterMovementComponent::PhysWalking(float deltaTime, int32 Iterations)
 {
@@ -869,7 +871,7 @@ void UALSCharacterMovementComponent::MoveAlongFloor(const FVector& InVelocity, f
 	}
 
 	SafeMoveUpdatedComponent(RampVector, CharacterOwner->GetActorRotation(), true, Hit);
-	UE_LOG(LogTemp, Warning, TEXT("RampVector %s    delta %s      velocity %s"), *RampVector.ToString(), *Delta.ToString(), *InVelocity.ToString());
+	//UE_LOG(LogTemp, Warning, TEXT("RampVector %s    delta %s      velocity %s"), *RampVector.ToString(), *Delta.ToString(), *InVelocity.ToString());
 
 	float LastMoveTimeSlice = DeltaSeconds;
 	if (Hit.bStartPenetrating)
@@ -2707,6 +2709,8 @@ FVector UALSCharacterMovementComponent::GetComponentDesiredAxisZ() const
 	return GetGravityDirection(true) * -1.0f;
 }
 
+
+
 void UALSCharacterMovementComponent::UpdateComponentRotation()
 {
 	if (!UpdatedComponent)
@@ -2726,9 +2730,15 @@ void UALSCharacterMovementComponent::UpdateComponentRotation()
 
 	// Take desired Z rotation axis of capsule, try to keep current X rotation axis of capsule.
 	const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(DesiredCapsuleUp, GetCapsuleAxisX());
+	//const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(DesiredCapsuleUp, UpdatedComponent->GetForwardVector());
 
 	// Intentionally not using MoveUpdatedComponent to bypass constraints.
 	UpdatedComponent->MoveComponent(FVector::ZeroVector, RotationMatrix.Rotator(), true);
+	AALSPlayerController* GravController = Cast<AALSPlayerController>(CharacterOwner->Controller);
+	if (GravController)
+	{
+		//GravController->SetControlRotation(UpdatedComponent->GetComponentRotation());
+	}
 }
 
 inline FQuat UALSCharacterMovementComponent::GetCapsuleRotation() const
