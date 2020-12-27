@@ -2729,15 +2729,28 @@ void UALSCharacterMovementComponent::UpdateComponentRotation()
 	//}
 
 	// Take desired Z rotation axis of capsule, try to keep current X rotation axis of capsule.
-	const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(DesiredCapsuleUp, GetCapsuleAxisX());
-	//const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(DesiredCapsuleUp, UpdatedComponent->GetForwardVector());
+	//const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(DesiredCapsuleUp, GetCapsuleAxisX());
+	const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(DesiredCapsuleUp, UpdatedComponent->GetForwardVector());
 
+	FQuat OldRotation = UpdatedComponent->GetComponentRotation().Quaternion();
 	// Intentionally not using MoveUpdatedComponent to bypass constraints.
 	UpdatedComponent->MoveComponent(FVector::ZeroVector, RotationMatrix.Rotator(), true);
+	//if ((DesiredCapsuleUp | GetCapsuleAxisZ()) >= THRESH_NORMALS_ARE_PARALLEL)
+	//{
+	//	return;
+	//}
+	
 	AALSPlayerController* GravController = Cast<AALSPlayerController>(CharacterOwner->Controller);
 	if (GravController)
 	{
+		
+		FQuat NewRotation = UpdatedComponent->GetComponentRotation().Quaternion();
 		//GravController->SetControlRotation(UpdatedComponent->GetComponentRotation());
+		const FQuat DeltaRotation = NewRotation * OldRotation.Inverse();
+		FRotator NewControlRotation = (GravController->GetControlRotation().Quaternion() * DeltaRotation).Rotator();
+			GravController->SetControlRotation(NewControlRotation);
+		
+
 	}
 }
 
@@ -2786,4 +2799,20 @@ bool UALSCharacterMovementComponent::IsWithinEdgeToleranceNew(const FVector& Cap
 	const float ReducedRadiusSq = FMath::Square(FMath::Max(KINDA_SMALL_NUMBER, CapsuleRadius - SWEEP_EDGE_REJECT_DISTANCE));
 
 	return DistFromCenterSq < ReducedRadiusSq;
+}
+
+void UALSCharacterMovementComponent::GravityControlRotation()
+{
+
+
+	AALSPlayerController* GravController = Cast<AALSPlayerController>(CharacterOwner->Controller);
+	if (GravController)
+	{
+		//FQuat OldControlRotation = GravController->GetControlRotation().Quaternion();
+		//FQuat NewControlRotation = UpdatedComponent->GetComponentRotation().Quaternion();
+		GravController->SetControlRotation(UpdatedComponent->GetComponentRotation());
+	}
+
+
+
 }

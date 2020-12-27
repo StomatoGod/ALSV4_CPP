@@ -14,6 +14,7 @@
 #include "Library/ALSMathLibrary.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/TimelineComponent.h"
+#include "Camera/CameraComponent.h"
 #include "Curves/CurveVector.h"
 #include "Curves/CurveFloat.h"
 #include "Character/ALSCharacterMovementComponent.h"
@@ -22,6 +23,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
 #include "Net/UnrealNetwork.h"
+#include "DrawDebugHelpers.h"
 
 
 AALSBaseCharacter::AALSBaseCharacter(const FObjectInitializer& ObjectInitializer)
@@ -32,6 +34,15 @@ AALSBaseCharacter::AALSBaseCharacter(const FObjectInitializer& ObjectInitializer
 	bUseControllerRotationYaw = 0;
 	bReplicates = true;
 	SetReplicatingMovement(true);
+
+	CapsuleSlerper = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Slerper"));
+	FirstPersonCameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
+	FirstPersonCameraComponent->SetupAttachment(CapsuleSlerper);
+	//FirstPersonCameraComponent->SetRelativeLocation(FVector(-39.56f, 1.75f, 64.f)); // Position the camera
+	FirstPersonCameraComponent->bUsePawnControlRotation = false;
+	
+
+	
 }
 
 void AALSBaseCharacter::Restart()
@@ -164,6 +175,11 @@ void AALSBaseCharacter::BeginPlay()
 	{
 		MainAnimInstance->SetRootMotionMode(ERootMotionMode::IgnoreRootMotion);
 	}
+
+
+	CapsuleSlerper->SetWorldLocation(GetCapsuleComponent()->GetComponentLocation());
+	CapsuleSlerper->SetWorldRotation(GetCapsuleComponent()->GetComponentRotation().Quaternion());
+
 }
 
 void AALSBaseCharacter::PreInitializeComponents()
@@ -194,6 +210,10 @@ void AALSBaseCharacter::SetGravityDirection(FVector Direction)
 void AALSBaseCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	CapsuleSlerper->SetWorldLocation(GetCapsuleComponent()->GetComponentLocation());
+	//CapsuleSlerper->SetWorldRotation(GetCapsuleComponent()->GetComponentRotation().Quaternion());
+
+
 
 	// Set required values
 	SetEssentialValues(DeltaTime);
@@ -226,6 +246,26 @@ void AALSBaseCharacter::Tick(float DeltaTime)
 	PreviousAimYaw = AimingRotation.Yaw;
 
 	DrawDebugSpheres();
+	FVector CapsuleForward = GetCapsuleComponent()->GetForwardVector();
+	FVector CapsuleUp = GetCapsuleComponent()->GetUpVector();
+	FVector Start = GetCapsuleComponent()->GetComponentLocation() + (CapsuleForward * 20) + (CapsuleUp * 50);
+	FVector End = GetCapsuleComponent()->GetComponentLocation() + (CapsuleForward * 70) + (CapsuleUp * 50);
+	DrawDebugLine(this->GetWorld(), Start, End, FColor::Green, false, .1f, 0, 4.f);
+
+	//Rotate CapsuleSlerper According To Capsule
+	const FQuat CapsuleRotation = CapsuleSlerper->GetComponentQuat();
+	const FVector QuatVector(CapsuleRotation.X, CapsuleRotation.Y, CapsuleRotation.Z);
+
+	FVector SlerperX = FVector(FMath::Square(CapsuleRotation.W) - QuatVector.SizeSquared(), CapsuleRotation.Z * CapsuleRotation.W * 2.0f,
+		CapsuleRotation.Y * CapsuleRotation.W * -2.0f) + QuatVector * (CapsuleRotation.X * 2.0f);
+		
+	const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(GetCapsuleComponent()->GetUpVector(), CapsuleSlerper->GetForwardVector());
+	CapsuleSlerper->MoveComponent(FVector::ZeroVector, RotationMatrix.Rotator(), false);
+
+
+	
+	YawThisFrame = 0.f;
+	PitchThisFrame = 0.f;
 }
 
 void AALSBaseCharacter::RagdollStart()
@@ -698,7 +738,24 @@ FTransform AALSBaseCharacter::GetThirdPersonPivotTarget()
 
 FVector AALSBaseCharacter::GetFirstPersonCameraTarget()
 {
-	return GetMesh()->GetSocketLocation(FName(TEXT("FP_Camera")));
+	//return GetMesh()->GetSocketLocation(FName(TEXT("FP_Camera")));
+	return FirstPersonCameraComponent->GetComponentLocation();
+}
+
+UCameraComponent* AALSBaseCharacter::GetFirstPersonCamera()
+{
+	return FirstPersonCameraComponent;
+}
+
+UStaticMeshComponent* AALSBaseCharacter::GetCameraPoll()
+{
+	return CapsuleSlerper;
+}
+
+FRotator AALSBaseCharacter::GetFirstPersonCameraRotation()
+{
+	//return GetMesh()->GetSocketLocation(FName(TEXT("FP_Camera")));
+	return FirstPersonCameraComponent->GetComponentRotation();
 }
 
 void AALSBaseCharacter::GetCameraParameters(float& TPFOVOut, float& FPFOVOut, bool& bRightShoulderOut) const
@@ -1524,7 +1581,7 @@ void AALSBaseCharacter::PlayerForwardMovementInput(float Value)
 		//const float Scale = UALSMathLibrary::FixDiagonalGamepadValues(Value, GetInputAxisValue("MoveRight/Left")).Key;
 		//const FRotator DirRotator(0.0f, AimingRotation.Yaw, 0.0f);
 		//AddMovementInput(UKismetMathLibrary::GetForwardVector(DirRotator), Scale);
-		AddMovementInput(this->GetCapsuleComponent()->GetForwardVector(), Value);
+		AddMovementInput(GetCapsuleComponent()->GetForwardVector(), Value);
 	}
 }
 
@@ -1537,17 +1594,20 @@ void AALSBaseCharacter::PlayerRightMovementInput(float Value)
 		//	.Value;
 		//const FRotator DirRotator(0.0f, AimingRotation.Yaw, 0.0f);
 		//AddMovementInput(UKismetMathLibrary::GetRightVector(DirRotator), Scale);
-		AddMovementInput(this->GetCapsuleComponent()->GetRightVector(), Value);
+		AddMovementInput(GetCapsuleComponent()->GetRightVector(), Value);
 	}
 }
 
 void AALSBaseCharacter::PlayerCameraUpInput(float Value)
 {
+	//YawThisFrame+= 10.f * Value;
 	AddControllerPitchInput(LookUpDownRate * Value);
 }
 
 void AALSBaseCharacter::PlayerCameraRightInput(float Value)
 {
+
+	//PitchThisFrame+= 10.f * Value;
 	AddControllerYawInput(LookLeftRightRate * Value);
 }
 
@@ -1623,6 +1683,8 @@ void AALSBaseCharacter::AimReleasedAction()
 
 void AALSBaseCharacter::CameraPressedAction()
 {
+
+
 
 	UE_LOG(LogTemp, Warning, TEXT("Camera Pressed"));
 	UWorld* World = GetWorld();
@@ -1727,7 +1789,8 @@ void AALSBaseCharacter::WalkPressedAction()
 void AALSBaseCharacter::RagdollPressedAction()
 {
 	// Ragdoll Action: Press "Ragdoll Action" to toggle the ragdoll state on or off.
-	MyCharacterMovementComponent->SetGravityDirection(FVector(0.f, 1.f, 0.f));
+	//MyCharacterMovementComponent->SetGravityDirection(FVector(0.f, 1.f, 0.f));
+	MyCharacterMovementComponent->GravityControlRotation();
 	//if (GetMovementState() == EALSMovementState::Ragdoll)
 	//{
 	//	ReplicatedRagdollEnd();

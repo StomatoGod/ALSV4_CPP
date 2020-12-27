@@ -38,6 +38,9 @@ void AALSPlayerCameraManager::OnPossess(AALSBaseCharacter* NewCharacter)
 		SetActorLocation(TPSLoc);
 		SmoothedPivotTarget.SetLocation(TPSLoc);
 	}
+
+	SetViewTarget(ControlledCharacter);
+	
 }
 
 float AALSPlayerCameraManager::GetCameraBehaviorParam(FName CurveName) const
@@ -88,6 +91,8 @@ FVector AALSPlayerCameraManager::CalculateAxisIndependentLag(FVector CurrentLoca
 
 bool AALSPlayerCameraManager::CustomCameraBehavior(float DeltaTime, FVector& Location, FRotator& Rotation, float& FOV)
 {
+
+
 	if (!ControlledCharacter)
 	{
 		return false;
@@ -96,6 +101,9 @@ bool AALSPlayerCameraManager::CustomCameraBehavior(float DeltaTime, FVector& Loc
 	// Step 1: Get Camera Parameters from CharacterBP via the Camera Interface
 	const FTransform& PivotTarget = ControlledCharacter->GetThirdPersonPivotTarget();
 	const FVector& FPTarget = ControlledCharacter->GetFirstPersonCameraTarget();
+	
+
+
 	float TPFOV = 90.0f;
 	float FPFOV = 90.0f;
 	bool bRightShoulder = false;
@@ -185,6 +193,8 @@ bool AALSPlayerCameraManager::CustomCameraBehavior(float DeltaTime, FVector& Loc
 	                                                              GetCameraBehaviorParam(
 		                                                              FName(TEXT("Override_Debug"))));
 
+
+	
 	Location = TargetTransform.GetLocation();
 	Rotation = TargetTransform.Rotator();
 	FOV = FMath::Lerp(TPFOV, FPFOV, GetCameraBehaviorParam(FName(TEXT("Weight_FirstPerson"))));

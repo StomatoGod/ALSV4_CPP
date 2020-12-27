@@ -100,6 +100,8 @@ public:
 
 	UFUNCTION(Category = "Pawn|Components|CharacterMovement", BlueprintCallable)
 		virtual void SetGravityDirection(FVector NewGravityDirection);
+
+	void GravityControlRotation();
 protected:
 	// Return the normalized direction of the current gravity.
 	// @note Could return zero gravity.
@@ -152,6 +154,8 @@ protected:
 	bool IsWithinEdgeToleranceNew(const FVector& CapsuleLocation, const FVector& CapsuleDown, const FVector& TestImpactPoint, const float CapsuleRadius) const;
 	bool bFallingRemovesSpeedZ;
 	bool bIgnoreBaseRollMove;
+
+
 
 	UPROPERTY()
 		FVector CustomGravityDirection = FVector::ZeroVector;

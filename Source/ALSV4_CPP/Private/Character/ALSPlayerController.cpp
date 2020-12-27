@@ -16,11 +16,15 @@ void AALSPlayerController::OnRestartPawn(APawn* NewPawn)
 	check(PossessedCharacter);
 
 	// Call "OnPossess" in Player Camera Manager when possessing a pawn
+	
+	/**
 	AALSPlayerCameraManager* CastedMgr = Cast<AALSPlayerCameraManager>(PlayerCameraManager);
 	if (CastedMgr)
 	{
 		CastedMgr->OnPossess(PossessedCharacter);
 	}
+	**/
+	PlayerCameraManager->SetViewTarget(GetPawn());
 }
 
 void AALSPlayerController::PlayerTick(float DeltaTime)

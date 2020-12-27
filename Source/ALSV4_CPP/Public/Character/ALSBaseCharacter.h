@@ -32,8 +32,17 @@ class ALSV4_CPP_API AALSBaseCharacter : public ACharacter
 {
 	GENERATED_BODY()
 
+		UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+		class UCameraComponent* FirstPersonCameraComponent;
+
+	UPROPERTY(VisibleAnywhere)
+		class UStaticMeshComponent* CapsuleSlerper;
+
 public:
 	AALSBaseCharacter(const FObjectInitializer& ObjectInitializer);
+
+	float PitchThisFrame; 
+	float YawThisFrame;
 
 	UFUNCTION(BlueprintCallable, Category= "Movement")
 		FORCEINLINE class UALSCharacterMovementComponent* GetMyMovementComponent() const
@@ -100,6 +109,7 @@ public:
 
 	UFUNCTION(BlueprintGetter, Category = "ALS|Character States")
 	EALSGait GetGait() const { return Gait; }
+	
 
 	UFUNCTION(BlueprintGetter, Category = "ALS|CharacterStates")
 	EALSGait GetDesiredGait() const { return DesiredGait; }
@@ -289,6 +299,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "ALS|Camera System")
 	virtual FVector GetFirstPersonCameraTarget();
+
+	virtual UCameraComponent* GetFirstPersonCamera();
+
+	virtual UStaticMeshComponent* GetCameraPoll();
+
+	FRotator GetFirstPersonCameraRotation();
 
 	UFUNCTION(BlueprintCallable, Category = "ALS|Camera System")
 	void GetCameraParameters(float& TPFOVOut, float& FPFOVOut, bool& bRightShoulderOut) const;
