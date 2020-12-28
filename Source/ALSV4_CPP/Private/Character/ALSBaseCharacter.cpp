@@ -179,6 +179,7 @@ void AALSBaseCharacter::BeginPlay()
 
 	CapsuleSlerper->SetWorldLocation(GetCapsuleComponent()->GetComponentLocation());
 	CapsuleSlerper->SetWorldRotation(GetCapsuleComponent()->GetComponentRotation().Quaternion());
+	RotationMode = EALSRotationMode::LookingDirection;
 
 }
 
@@ -259,11 +260,17 @@ void AALSBaseCharacter::Tick(float DeltaTime)
 	FVector SlerperX = FVector(FMath::Square(CapsuleRotation.W) - QuatVector.SizeSquared(), CapsuleRotation.Z * CapsuleRotation.W * 2.0f,
 		CapsuleRotation.Y * CapsuleRotation.W * -2.0f) + QuatVector * (CapsuleRotation.X * 2.0f);
 		
-	const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(GetCapsuleComponent()->GetUpVector(), CapsuleSlerper->GetForwardVector());
+	const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(CapsuleUp, CapsuleSlerper->GetForwardVector());
 	CapsuleSlerper->MoveComponent(FVector::ZeroVector, RotationMatrix.Rotator(), false);
 
 
 	
+	if (!HasAuthority())
+	{
+		
+		//Replicate the slerper and camera locations
+		Server_SetCameraRotation(FirstPersonCameraComponent->GetComponentRotation());
+	}
 	YawThisFrame = 0.f;
 	PitchThisFrame = 0.f;
 }
@@ -343,6 +350,12 @@ void AALSBaseCharacter::RagdollEnd()
 void AALSBaseCharacter::Server_SetMeshLocationDuringRagdoll_Implementation(FVector MeshLocation)
 {
 	TargetRagdollLocation = MeshLocation;
+}
+
+void AALSBaseCharacter::Server_SetCameraRotation_Implementation(FRotator Rot)
+{
+	CameraRotation = Rot;
+	MyCharacterMovementComponent->GravityControlRotation(Rot);
 }
 
 void AALSBaseCharacter::SetMovementState(const EALSMovementState NewState)
@@ -1005,7 +1018,9 @@ void AALSBaseCharacter::SetEssentialValues(float DeltaTime)
 	if (GetLocalRole() != ROLE_SimulatedProxy)
 	{
 		ReplicatedCurrentAcceleration = GetCharacterMovement()->GetCurrentAcceleration();
-		ReplicatedControlRotation = GetControlRotation();
+		//ReplicatedControlRotation = GetControlRotation();
+		
+		ReplicatedControlRotation = CameraRotation;
 		EasedMaxAcceleration = GetCharacterMovement()->GetMaxAcceleration();
 	}
 
@@ -1581,7 +1596,7 @@ void AALSBaseCharacter::PlayerForwardMovementInput(float Value)
 		//const float Scale = UALSMathLibrary::FixDiagonalGamepadValues(Value, GetInputAxisValue("MoveRight/Left")).Key;
 		//const FRotator DirRotator(0.0f, AimingRotation.Yaw, 0.0f);
 		//AddMovementInput(UKismetMathLibrary::GetForwardVector(DirRotator), Scale);
-		AddMovementInput(GetCapsuleComponent()->GetForwardVector(), Value);
+		AddMovementInput(CapsuleSlerper->GetForwardVector(), Value);
 	}
 }
 
@@ -1594,7 +1609,7 @@ void AALSBaseCharacter::PlayerRightMovementInput(float Value)
 		//	.Value;
 		//const FRotator DirRotator(0.0f, AimingRotation.Yaw, 0.0f);
 		//AddMovementInput(UKismetMathLibrary::GetRightVector(DirRotator), Scale);
-		AddMovementInput(GetCapsuleComponent()->GetRightVector(), Value);
+		AddMovementInput(CapsuleSlerper->GetRightVector(), Value);
 	}
 }
 
@@ -1789,16 +1804,15 @@ void AALSBaseCharacter::WalkPressedAction()
 void AALSBaseCharacter::RagdollPressedAction()
 {
 	// Ragdoll Action: Press "Ragdoll Action" to toggle the ragdoll state on or off.
-	//MyCharacterMovementComponent->SetGravityDirection(FVector(0.f, 1.f, 0.f));
-	MyCharacterMovementComponent->GravityControlRotation();
-	//if (GetMovementState() == EALSMovementState::Ragdoll)
-	//{
-	//	ReplicatedRagdollEnd();
-	//}
-	//else
-	//{
-	//	ReplicatedRagdollStart();
-//	}
+	
+	if (GetMovementState() == EALSMovementState::Ragdoll)
+	{
+		ReplicatedRagdollEnd();
+	}
+	else
+	{
+		ReplicatedRagdollStart();
+	}
 }
 
 void AALSBaseCharacter::VelocityDirectionPressedAction()

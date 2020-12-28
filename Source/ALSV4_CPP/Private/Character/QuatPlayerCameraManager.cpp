@@ -15,9 +15,16 @@ bool AQuatPlayerCameraManager::IsGravityWalker()
 
 UCameraComponent* AQuatPlayerCameraManager::GetGravityPlayerCameraComponent()
 {
-	AALSBaseCharacter* Character = Cast<AALSBaseCharacter>(GetViewTargetPawn());
-	
+	if (AALSBaseCharacter* Character = Cast<AALSBaseCharacter>(GetViewTargetPawn()))
+	{
 		return Character->GetFirstPersonCamera();
+	}
+	else
+	{
+		return nullptr;
+	}
+	
+		
 	
 }
 
@@ -27,8 +34,11 @@ void AQuatPlayerCameraManager::RotateComponents(FRotator DeltaRotation)
 	FQuat DeltaQuatYaw = FRotator(0.f, DeltaRotation.Yaw, 0.f).Quaternion();
 
 
+	if (AALSBaseCharacter* Character = Cast<AALSBaseCharacter>(GetViewTargetPawn()))
+	{
+		Character->GetCameraPoll()->AddLocalRotation(DeltaQuatYaw);
+		Character->GetFirstPersonCamera()->AddLocalRotation(DeltaQuatPitch);
+	}
 	
-	AALSBaseCharacter* Character = Cast<AALSBaseCharacter>(GetViewTargetPawn());
-	Character->GetCameraPoll()->AddLocalRotation(DeltaQuatYaw);
-	Character->GetFirstPersonCamera()->AddLocalRotation(DeltaQuatPitch);
+	
 }

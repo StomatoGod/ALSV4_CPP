@@ -482,6 +482,7 @@ void UALSCharacterMovementComponent::PerformMovement(float DeltaTime)
 	LastUpdateLocation = UpdatedComponent ? UpdatedComponent->GetComponentLocation() : FVector::ZeroVector;
 }
 **/
+
 void UALSCharacterMovementComponent::HandleImpact(const FHitResult& Hit, float TimeSlice /*= 0.f*/, const FVector& MoveDelta /*= FVector::ZeroVector*/)
 {
 	if (CharacterOwner)
@@ -534,7 +535,7 @@ void UALSCharacterMovementComponent::ProcessLanded(const FHitResult& Hit, float 
 
 void UALSCharacterMovementComponent::MaintainHorizontalGroundVelocity()
 {
-	return;
+	//return;
 	if (bMaintainHorizontalGroundVelocity)
 	{
 		// Just remove the vertical component.
@@ -637,7 +638,7 @@ void UALSCharacterMovementComponent::PhysWalking(float deltaTime, int32 Iteratio
 	float RemainingTime = deltaTime;
 
 	// Perform the move.
-	while (RemainingTime >= MIN_TICK_TIME && Iterations < MaxSimulationIterations && CharacterOwner && (CharacterOwner->Controller || bRunPhysicsWithNoController || HasAnimRootMotion()))
+	while (RemainingTime >= MIN_TICK_TIME && Iterations < MaxSimulationIterations && CharacterOwner && (CharacterOwner->Controller || bRunPhysicsWithNoController || HasAnimRootMotion() ))
 	{
 		Iterations++;
 		bJustTeleported = false;
@@ -2748,7 +2749,7 @@ void UALSCharacterMovementComponent::UpdateComponentRotation()
 		//GravController->SetControlRotation(UpdatedComponent->GetComponentRotation());
 		const FQuat DeltaRotation = NewRotation * OldRotation.Inverse();
 		FRotator NewControlRotation = (GravController->GetControlRotation().Quaternion() * DeltaRotation).Rotator();
-			GravController->SetControlRotation(NewControlRotation);
+		//	GravController->SetControlRotation(NewControlRotation);
 		
 
 	}
@@ -2801,7 +2802,7 @@ bool UALSCharacterMovementComponent::IsWithinEdgeToleranceNew(const FVector& Cap
 	return DistFromCenterSq < ReducedRadiusSq;
 }
 
-void UALSCharacterMovementComponent::GravityControlRotation()
+void UALSCharacterMovementComponent::GravityControlRotation(FRotator Rotation)
 {
 
 
@@ -2810,7 +2811,7 @@ void UALSCharacterMovementComponent::GravityControlRotation()
 	{
 		//FQuat OldControlRotation = GravController->GetControlRotation().Quaternion();
 		//FQuat NewControlRotation = UpdatedComponent->GetComponentRotation().Quaternion();
-		GravController->SetControlRotation(UpdatedComponent->GetComponentRotation());
+		GravController->SetControlRotation(Rotation);
 	}
 
 

@@ -81,6 +81,9 @@ public:
 	UFUNCTION(BlueprintCallable, Server, Unreliable, Category = "ALS|Ragdoll System")
 	void Server_SetMeshLocationDuringRagdoll(FVector MeshLocation);
 
+	UFUNCTION(BlueprintCallable, Server, Unreliable, Category = "Camera System")
+		void Server_SetCameraRotation(FRotator Rot);
+
 	/** Character States */
 
 	UFUNCTION(BlueprintCallable, Category = "ALS|Character States")
@@ -681,6 +684,9 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Replicated, Category = "ALS|Ragdoll System")
 	FVector TargetRagdollLocation = FVector::ZeroVector;
+
+	UPROPERTY(BlueprintReadOnly, Replicated, Category = "CameraSystem")
+	FRotator CameraRotation; 
 
 	/* Server ragdoll pull force storage*/
 	float ServerRagdollPull = 0.0f;

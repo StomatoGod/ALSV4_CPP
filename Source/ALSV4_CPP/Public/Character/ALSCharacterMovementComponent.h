@@ -96,12 +96,14 @@ public:
 	virtual bool IsWalkable(const FHitResult& Hit) const override;
 	virtual void ComputeFloorDist(const FVector& CapsuleLocation, float LineDistance, float SweepDistance, FFindFloorResult& OutFloorResult, float SweepRadius, const FHitResult* DownwardSweepResult = NULL) const override;
 	virtual bool IsWithinEdgeTolerance(const FVector& CapsuleLocation, const FVector& TestImpactPoint, const float CapsuleRadius) const override;
+
+	
 	// End UCharacterMovementComponent overrides
 
 	UFUNCTION(Category = "Pawn|Components|CharacterMovement", BlueprintCallable)
 		virtual void SetGravityDirection(FVector NewGravityDirection);
 
-	void GravityControlRotation();
+	void GravityControlRotation(FRotator Rotation);
 protected:
 	// Return the normalized direction of the current gravity.
 	// @note Could return zero gravity.
