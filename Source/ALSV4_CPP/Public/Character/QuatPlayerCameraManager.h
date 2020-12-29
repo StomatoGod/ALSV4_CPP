@@ -19,4 +19,6 @@ class ALSV4_CPP_API AQuatPlayerCameraManager : public APlayerCameraManager
 		virtual bool IsGravityWalker() override;
 		virtual UCameraComponent* GetGravityPlayerCameraComponent() override;
 		virtual void RotateComponents(FRotator DeltaRotation) override;
+
+		void UpdateViewlRotationWithCameraRotation(FRotator& OutViewRotation) override;
 };

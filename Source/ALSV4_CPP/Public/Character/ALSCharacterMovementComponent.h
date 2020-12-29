@@ -67,6 +67,7 @@ public:
 	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ***** 
 
 	// Begin UCharacterMovementComponent overrides
+	//virtual void PhysicsRotation(float DeltaTime) override;
 	virtual FVector CalcAnimRootMotionVelocity(const FVector& RootMotionDeltaMove, float DeltaSeconds, const FVector& CurrentVelocity) const override;
 	virtual void StartFalling(int32 Iterations, float remainingTime, float timeTick, const FVector& Delta, const FVector& subLoc) override;
 	virtual void PhysFalling(float deltaTime, int32 Iterations) override;
@@ -122,7 +123,7 @@ protected:
 	virtual void PhysFlying(float deltaTime, int32 Iterations) override;
 	virtual float BoostAirControl(float DeltaTime, float TickAirControl, const FVector& FallAcceleration) override;
 	virtual void OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode) override;
-	//virtual void PerformMovement(float DeltaTime) override;
+	virtual void PerformMovement(float DeltaTime) override;
 	virtual void HandleImpact(const FHitResult& Hit, float TimeSlice = 0.f, const FVector& MoveDelta = FVector::ZeroVector) override;
 	virtual void ProcessLanded(const FHitResult& Hit, float remainingTime, int32 Iterations) override;
 

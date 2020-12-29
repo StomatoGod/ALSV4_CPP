@@ -27,6 +27,7 @@ class ALSV4_CPP_API AALSPlayerController : public APlayerController
 public:
 	void OnRestartPawn(APawn* NewPawn);
 	FRotator RotationInputStored;
+
 private:
 	/** Main character reference */
 	UPROPERTY()

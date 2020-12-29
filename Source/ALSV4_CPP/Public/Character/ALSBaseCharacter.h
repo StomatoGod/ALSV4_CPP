@@ -44,6 +44,12 @@ public:
 	float PitchThisFrame; 
 	float YawThisFrame;
 
+	//!!!!!!!!!!!!!!!!!111
+	UPROPERTY(BlueprintReadOnly, Replicated, Category = "CameraSystem")
+		FRotator CameraRotation;
+	//!!!!!!!!!!!!!!!!!111
+
+
 	UFUNCTION(BlueprintCallable, Category= "Movement")
 		FORCEINLINE class UALSCharacterMovementComponent* GetMyMovementComponent() const
 	{
@@ -420,6 +426,8 @@ protected:
 
 	void SmoothCharacterRotation(FRotator Target, float TargetInterpSpeed, float ActorInterpSpeed, float DeltaTime);
 
+	void SmoothGravityCharacterRotation(FRotator Target, float TargetInterpSpeed, float ActorInterpSpeed, float DeltaTime);
+
 	float CalculateGroundedRotationRate() const;
 
 	void LimitRotation(float AimYawMin, float AimYawMax, float InterpSpeed, float DeltaTime);
@@ -685,8 +693,6 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Replicated, Category = "ALS|Ragdoll System")
 	FVector TargetRagdollLocation = FVector::ZeroVector;
 
-	UPROPERTY(BlueprintReadOnly, Replicated, Category = "CameraSystem")
-	FRotator CameraRotation; 
 
 	/* Server ragdoll pull force storage*/
 	float ServerRagdollPull = 0.0f;

@@ -9,6 +9,7 @@
 #include "Character/ALSPlayerController.h"
 #include "Character/ALSCharacter.h"
 #include "Character/ALSPlayerCameraManager.h"
+#include "Character/QuatPlayerCameraManager.h"
 
 void AALSPlayerController::OnRestartPawn(APawn* NewPawn)
 {
@@ -24,8 +25,13 @@ void AALSPlayerController::OnRestartPawn(APawn* NewPawn)
 		CastedMgr->OnPossess(PossessedCharacter);
 	}
 	**/
-	PlayerCameraManager->SetViewTarget(GetPawn());
+	AQuatPlayerCameraManager* CastedMgr = Cast<AQuatPlayerCameraManager>(PlayerCameraManager);
+	if (CastedMgr)
+	{
+		CastedMgr->SetViewTarget(GetPawn());
+	}
 }
+
 
 void AALSPlayerController::PlayerTick(float DeltaTime)
 {
@@ -36,7 +42,6 @@ void AALSPlayerController::PlayerTick(float DeltaTime)
 	if (Dude != nullptr)
 	{
 		//UE_LOG(LogClass, Error, TEXT(" Player Controller: RotationInput.YAW: %f"), RotationInput.Yaw)
-		RotationInputStored += RotationInput;
 		//UpdateMouseLook(DeltaTime);
 
 		//	UE_LOG(LogClass, Error, TEXT(" RotationInput.YAW: %f"), RotationInput.Yaw);

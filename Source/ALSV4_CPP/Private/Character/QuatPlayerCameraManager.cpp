@@ -42,3 +42,11 @@ void AQuatPlayerCameraManager::RotateComponents(FRotator DeltaRotation)
 	
 	
 }
+
+void AQuatPlayerCameraManager::UpdateViewlRotationWithCameraRotation(FRotator& OutViewRotation)
+{
+	if (AALSBaseCharacter* Character = Cast<AALSBaseCharacter>(GetViewTargetPawn()))
+	{
+		OutViewRotation = Character->CameraRotation;
+	}
+}

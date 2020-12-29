@@ -60,4 +60,6 @@ public:
 	static EALSMovementDirection CalculateQuadrant(EALSMovementDirection Current, float FRThreshold, float FLThreshold,
 	                                               float BRThreshold,
 	                                               float BLThreshold, float Buffer, float Angle);
+	static FRotator RInterpConstantTo(const FRotator& Current, const FRotator& Target, float DeltaTime, float InterpSpeed);
+	static FRotator RInterpTo(const FRotator& Current, const FRotator& Target, float DeltaTime, float InterpSpeed);
 };

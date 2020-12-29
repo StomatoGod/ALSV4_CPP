@@ -94,6 +94,7 @@ void AALSBaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(AALSBaseCharacter, TargetRagdollLocation);
+	DOREPLIFETIME_CONDITION(AALSBaseCharacter, CameraRotation, COND_SkipOwner);
 	DOREPLIFETIME_CONDITION(AALSBaseCharacter, ReplicatedCurrentAcceleration, COND_SkipOwner);
 	DOREPLIFETIME_CONDITION(AALSBaseCharacter, ReplicatedControlRotation, COND_SkipOwner);
 
@@ -181,6 +182,8 @@ void AALSBaseCharacter::BeginPlay()
 	CapsuleSlerper->SetWorldRotation(GetCapsuleComponent()->GetComponentRotation().Quaternion());
 	RotationMode = EALSRotationMode::LookingDirection;
 
+	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+
 }
 
 void AALSBaseCharacter::PreInitializeComponents()
@@ -213,9 +216,8 @@ void AALSBaseCharacter::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 	CapsuleSlerper->SetWorldLocation(GetCapsuleComponent()->GetComponentLocation());
 	//CapsuleSlerper->SetWorldRotation(GetCapsuleComponent()->GetComponentRotation().Quaternion());
-
-
-
+	
+	
 	// Set required values
 	SetEssentialValues(DeltaTime);
 
@@ -253,24 +255,33 @@ void AALSBaseCharacter::Tick(float DeltaTime)
 	FVector End = GetCapsuleComponent()->GetComponentLocation() + (CapsuleForward * 70) + (CapsuleUp * 50);
 	DrawDebugLine(this->GetWorld(), Start, End, FColor::Green, false, .1f, 0, 4.f);
 
+	
 	//Rotate CapsuleSlerper According To Capsule
 	const FQuat CapsuleRotation = CapsuleSlerper->GetComponentQuat();
 	const FVector QuatVector(CapsuleRotation.X, CapsuleRotation.Y, CapsuleRotation.Z);
 
-	FVector SlerperX = FVector(FMath::Square(CapsuleRotation.W) - QuatVector.SizeSquared(), CapsuleRotation.Z * CapsuleRotation.W * 2.0f,
-		CapsuleRotation.Y * CapsuleRotation.W * -2.0f) + QuatVector * (CapsuleRotation.X * 2.0f);
-		
-	const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(CapsuleUp, CapsuleSlerper->GetForwardVector());
-	CapsuleSlerper->MoveComponent(FVector::ZeroVector, RotationMatrix.Rotator(), false);
+	//FVector SlerperX = FVector(FMath::Square(CapsuleRotation.W) - QuatVector.SizeSquared(), CapsuleRotation.Z * CapsuleRotation.W * 2.0f,
+		//CapsuleRotation.Y * CapsuleRotation.W * -2.0f) + QuatVector * (CapsuleRotation.X * 2.0f);
 
-
-	
-	if (!HasAuthority())
+	if ((CapsuleUp | CapsuleSlerper->GetUpVector()) >= THRESH_NORMALS_ARE_PARALLEL)
 	{
 		
-		//Replicate the slerper and camera locations
-		Server_SetCameraRotation(FirstPersonCameraComponent->GetComponentRotation());
 	}
+	else
+	{
+		const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(CapsuleUp, CapsuleSlerper->GetForwardVector());
+		CapsuleSlerper->MoveComponent(FVector::ZeroVector, RotationMatrix.Rotator(), false);
+	}
+
+		
+	
+
+	
+	//UE_LOG(LogTemp, Warning, TEXT("Camera Rotation: %s"), *FirstPersonCameraComponent->GetComponentRotation().ToString());
+	//UE_LOG(LogTemp, Log, TEXT("Control Rotation: %s"), *GetControlRotation().ToString());
+	//if (!HasAuthority())
+	
+	
 	YawThisFrame = 0.f;
 	PitchThisFrame = 0.f;
 }
@@ -1015,12 +1026,22 @@ void AALSBaseCharacter::OnLandFrictionReset()
 
 void AALSBaseCharacter::SetEssentialValues(float DeltaTime)
 {
+	if (GetLocalRole() == ROLE_AutonomousProxy)
+	{
+		//Replicate the slerper and camera locations
+		Server_SetCameraRotation(FirstPersonCameraComponent->GetComponentRotation());
+	}
+	if (GetLocalRole() == ROLE_AutonomousProxy)
+	{
+		//CameraRotation = FirstPersonCameraComponent->GetComponentRotation();
+	}
 	if (GetLocalRole() != ROLE_SimulatedProxy)
 	{
+		CameraRotation = FirstPersonCameraComponent->GetComponentRotation();
 		ReplicatedCurrentAcceleration = GetCharacterMovement()->GetCurrentAcceleration();
-		//ReplicatedControlRotation = GetControlRotation();
+		ReplicatedControlRotation = GetControlRotation();
 		
-		ReplicatedControlRotation = CameraRotation;
+		//ReplicatedControlRotation = CameraRotation;
 		EasedMaxAcceleration = GetCharacterMovement()->GetMaxAcceleration();
 	}
 
@@ -1034,7 +1055,7 @@ void AALSBaseCharacter::SetEssentialValues(float DeltaTime)
 	// Interp AimingRotation to current control rotation for smooth character rotation movement. Decrease InterpSpeed
 	// for slower but smoother movement.
 	AimingRotation = FMath::RInterpTo(AimingRotation, ReplicatedControlRotation, DeltaTime, 30);
-
+	//AimingRotation = FirstPersonCameraComponent->GetComponentRotation();
 	// These values represent how the capsule is moving as well as how it wants to move, and therefore are essential
 	// for any data driven animation system. They are also used throughout the system for various functions,
 	// so I found it is easiest to manage them all in one place.
@@ -1048,7 +1069,7 @@ void AALSBaseCharacter::SetEssentialValues(float DeltaTime)
 	// velocity, so it does not take vertical movement into account. If the character is moving, update the last
 	// velocity rotation. This value is saved because it might be useful to know the last orientation of movement
 	// even after the character has stopped.
-	SetSpeed(CurrentVel.Size2D());
+	SetSpeed(CurrentVel.Size());
 	SetIsMoving(Speed > 1.0f);
 	if (bIsMoving)
 	{
@@ -1145,12 +1166,14 @@ void AALSBaseCharacter::UpdateGroundedRotation(float DeltaTime)
 			const float GroundedRotationRate = CalculateGroundedRotationRate();
 			if (RotationMode == EALSRotationMode::VelocityDirection)
 			{
+				UE_LOG(LogTemp, Warning, TEXT("RotationMode == EALSRotationMode::VelocityDirection"));
 				// Velocity Direction Rotation
 				SmoothCharacterRotation({0.0f, LastVelocityRotation.Yaw, 0.0f}, 800.0f, GroundedRotationRate,
 				                        DeltaTime);
 			}
 			else if (RotationMode == EALSRotationMode::LookingDirection)
 			{
+				UE_LOG(LogTemp, Warning, TEXT("RotationMode == EALSRotationMode::LookingDirection"));
 				// Looking Direction Rotation
 				float YawValue;
 				if (Gait == EALSGait::Sprinting)
@@ -1161,9 +1184,15 @@ void AALSBaseCharacter::UpdateGroundedRotation(float DeltaTime)
 				{
 					// Walking or Running..
 					const float YawOffsetCurveVal = MainAnimInstance->GetCurveValue(FName(TEXT("YawOffset")));
-					YawValue = AimingRotation.Yaw + YawOffsetCurveVal;
+					//YawValue = AimingRotation.Yaw + YawOffsetCurveVal;
+					YawValue = YawOffsetCurveVal;
 				}
-				SmoothCharacterRotation({0.0f, YawValue, 0.0f}, 500.0f, GroundedRotationRate, DeltaTime);
+				FQuat DeltaQuatYaw = FRotator(0.f, YawValue, 0.f).Quaternion();
+				const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(GetCapsuleComponent()->GetUpVector(), CapsuleSlerper->GetForwardVector());
+				FRotator OutRotation = (RotationMatrix.ToQuat() * DeltaQuatYaw).Rotator();
+				
+				//SmoothCharacterRotation({0.0f, YawValue, 0.0f}, 500.0f, GroundedRotationRate, DeltaTime);
+				SmoothCharacterRotation(OutRotation, 500.0f, GroundedRotationRate, DeltaTime);
 			}
 			else if (RotationMode == EALSRotationMode::Aiming)
 			{
@@ -1189,15 +1218,18 @@ void AALSBaseCharacter::UpdateGroundedRotation(float DeltaTime)
 
 			if (FMath::Abs(RotAmountCurve) > 0.001f)
 			{
+				float DeltaYaw = RotAmountCurve * (DeltaTime / (1.0f / 30.0f));
+				FQuat DeltaQuatYaw = FRotator(0.f, DeltaYaw, 0.f).Quaternion();
+
 				if (GetLocalRole() == ROLE_AutonomousProxy)
-				{
-					TargetRotation.Yaw = UKismetMathLibrary::NormalizeAxis(
-						TargetRotation.Yaw + (RotAmountCurve * (DeltaTime / (1.0f / 30.0f))));
-					SetActorRotation(TargetRotation);
+				{	
+					FQuat TargetQuat = TargetRotation.Quaternion() * DeltaQuatYaw;
+					SetActorRotation(TargetQuat.Rotator());
 				}
 				else
 				{
-					AddActorWorldRotation({0, RotAmountCurve * (DeltaTime / (1.0f / 30.0f)), 0});
+					FQuat CurrentRotation = GetActorQuat();
+					SetActorRotation((CurrentRotation * DeltaQuatYaw).Rotator());
 				}
 				TargetRotation = GetActorRotation();
 			}
@@ -1544,6 +1576,16 @@ void AALSBaseCharacter::SmoothCharacterRotation(FRotator Target, float TargetInt
 	SetActorRotation(
 		FMath::RInterpTo(GetActorRotation(), TargetRotation, DeltaTime, ActorInterpSpeed));
 }
+void AALSBaseCharacter::SmoothGravityCharacterRotation(FRotator Target, float TargetInterpSpeed, float ActorInterpSpeed,
+	float DeltaTime)
+{
+	// Interpolate the Target Rotation for extra smooth rotation behavior
+	TargetRotation =
+		FMath::RInterpConstantTo(TargetRotation, Target, DeltaTime, TargetInterpSpeed);
+	SetActorRotation(
+		FMath::RInterpTo(GetActorRotation(), TargetRotation, DeltaTime, ActorInterpSpeed));
+}
+
 
 float AALSBaseCharacter::CalculateGroundedRotationRate() const
 {

@@ -338,7 +338,7 @@ void UALSCharacterMovementComponent::OnMovementModeChanged(EMovementMode Previou
 	CharacterOwner->OnMovementModeChanged(PreviousMovementMode, PreviousCustomMode);
 }
 
-/**
+
 void UALSCharacterMovementComponent::PerformMovement(float DeltaTime)
 {
 	if (!HasValidData())
@@ -481,7 +481,7 @@ void UALSCharacterMovementComponent::PerformMovement(float DeltaTime)
 
 	LastUpdateLocation = UpdatedComponent ? UpdatedComponent->GetComponentLocation() : FVector::ZeroVector;
 }
-**/
+
 
 void UALSCharacterMovementComponent::HandleImpact(const FHitResult& Hit, float TimeSlice /*= 0.f*/, const FVector& MoveDelta /*= FVector::ZeroVector*/)
 {
@@ -1085,6 +1085,7 @@ FVector UALSCharacterMovementComponent::ScaleInputAcceleration(const FVector& In
 {
 	return GetMaxAcceleration() * GetClampedToMaxSizePrecise(InputAcceleration, 1.0f);
 }
+
 
 FVector UALSCharacterMovementComponent::CalcAnimRootMotionVelocity(const FVector& RootMotionDeltaMove, float DeltaTime, const FVector& CurrentVelocity) const
 {
@@ -2724,35 +2725,20 @@ void UALSCharacterMovementComponent::UpdateComponentRotation()
 	// Commented out due to issues with big plannet and knowing snapping issues
 
 	// Abort if angle between new and old capsule 'up' axis almost equals to 0 degrees.
-	//if ((DesiredCapsuleUp | GetCapsuleAxisZ()) >= THRESH_NORMALS_ARE_PARALLEL)
-	//{
-	//	return;
-	//}
+	if ((DesiredCapsuleUp | GetCapsuleAxisZ()) >= THRESH_NORMALS_ARE_PARALLEL)
+	{
+		return;
+	}
 
+	
 	// Take desired Z rotation axis of capsule, try to keep current X rotation axis of capsule.
 	//const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(DesiredCapsuleUp, GetCapsuleAxisX());
 	const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(DesiredCapsuleUp, UpdatedComponent->GetForwardVector());
 
-	FQuat OldRotation = UpdatedComponent->GetComponentRotation().Quaternion();
 	// Intentionally not using MoveUpdatedComponent to bypass constraints.
 	UpdatedComponent->MoveComponent(FVector::ZeroVector, RotationMatrix.Rotator(), true);
-	//if ((DesiredCapsuleUp | GetCapsuleAxisZ()) >= THRESH_NORMALS_ARE_PARALLEL)
-	//{
-	//	return;
-	//}
-	
-	AALSPlayerController* GravController = Cast<AALSPlayerController>(CharacterOwner->Controller);
-	if (GravController)
-	{
-		
-		FQuat NewRotation = UpdatedComponent->GetComponentRotation().Quaternion();
-		//GravController->SetControlRotation(UpdatedComponent->GetComponentRotation());
-		const FQuat DeltaRotation = NewRotation * OldRotation.Inverse();
-		FRotator NewControlRotation = (GravController->GetControlRotation().Quaternion() * DeltaRotation).Rotator();
-		//	GravController->SetControlRotation(NewControlRotation);
-		
 
-	}
+	UE_LOG(LogTemp, Log, TEXT("UpdatedComponent UpVector: %s"), *GetCapsuleRotation().Rotator().ToString());
 }
 
 inline FQuat UALSCharacterMovementComponent::GetCapsuleRotation() const

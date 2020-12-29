@@ -104,3 +104,62 @@ EALSMovementDirection UALSMathLibrary::CalculateQuadrant(EALSMovementDirection C
 
 	return EALSMovementDirection::Backward;
 }
+
+FRotator UALSMathLibrary::RInterpConstantTo(const FRotator& Current, const FRotator& Target, float DeltaTime, float InterpSpeed)
+{
+	// if DeltaTime is 0, do not perform any interpolation (Location was already calculated for that frame)
+	if (DeltaTime == 0.f || Current == Target)
+	{
+		return Current;
+	}
+
+	// If no interp speed, jump to target value
+	if (InterpSpeed <= 0.f)
+	{
+		return Target;
+	}
+
+	const float DeltaInterpSpeed = InterpSpeed * DeltaTime;
+	
+	FQuat Slerp = FQuat::Slerp(Current.Quaternion(), Target.Quaternion(), DeltaInterpSpeed);
+	const FRotator DeltaMove = (Target - Current).GetNormalized();
+	FRotator Result = Current;
+	Result.Pitch += FMath::Clamp(DeltaMove.Pitch, -DeltaInterpSpeed, DeltaInterpSpeed);
+	Result.Yaw += FMath::Clamp(DeltaMove.Yaw, -DeltaInterpSpeed, DeltaInterpSpeed);
+	Result.Roll += FMath::Clamp(DeltaMove.Roll, -DeltaInterpSpeed, DeltaInterpSpeed);
+	//return Result.GetNormalized();
+	return Slerp.Rotator().GetNormalized();
+}
+FRotator UALSMathLibrary::RInterpTo(const FRotator& Current, const FRotator& Target, float DeltaTime, float InterpSpeed)
+{
+	// if DeltaTime is 0, do not perform any interpolation (Location was already calculated for that frame)
+	if (DeltaTime == 0.f || Current == Target)
+	{
+		return Current;
+	}
+
+	// If no interp speed, jump to target value
+	if (InterpSpeed <= 0.f)
+	{
+		return Target;
+	}
+
+	const float DeltaInterpSpeed = InterpSpeed * DeltaTime;
+
+	const FRotator Delta = (Target - Current).GetNormalized();
+
+	// If steps are too small, just return Target and assume we have reached our destination.
+	if (Delta.IsNearlyZero())
+	{
+		return Target;
+	}
+
+	// Delta Move, Clamp so we do not over shoot.
+	const FRotator DeltaMove = Delta * FMath::Clamp<float>(DeltaInterpSpeed, 0.f, 1.f);
+
+	const float DeltaInterpClamped = FMath::Clamp<float>(DeltaInterpSpeed, 0.f, 1.f);
+	FQuat Slerp = FQuat::Slerp(Current.Quaternion(), Target.Quaternion(), DeltaInterpClamped);
+
+	
+	return (Current + DeltaMove).GetNormalized();
+}
