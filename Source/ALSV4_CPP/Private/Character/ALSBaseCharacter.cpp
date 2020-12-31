@@ -253,7 +253,7 @@ void AALSBaseCharacter::Tick(float DeltaTime)
 	FVector CapsuleUp = GetCapsuleComponent()->GetUpVector();
 	FVector Start = GetCapsuleComponent()->GetComponentLocation() + (CapsuleForward * 20) + (CapsuleUp * 50);
 	FVector End = GetCapsuleComponent()->GetComponentLocation() + (CapsuleForward * 70) + (CapsuleUp * 50);
-	DrawDebugLine(this->GetWorld(), Start, End, FColor::Green, false, .1f, 0, 4.f);
+	//DrawDebugLine(this->GetWorld(), Start, End, FColor::Green, false, .1f, 0, 4.f);
 
 	
 	//Rotate CapsuleSlerper According To Capsule
@@ -1055,6 +1055,7 @@ void AALSBaseCharacter::SetEssentialValues(float DeltaTime)
 	// Interp AimingRotation to current control rotation for smooth character rotation movement. Decrease InterpSpeed
 	// for slower but smoother movement.
 	AimingRotation = FMath::RInterpTo(AimingRotation, ReplicatedControlRotation, DeltaTime, 30);
+	QuatYawRotation = FMath::RInterpTo(QuatYawRotation, CapsuleSlerper->GetComponentRotation(), DeltaTime, 30);
 	//AimingRotation = FirstPersonCameraComponent->GetComponentRotation();
 	// These values represent how the capsule is moving as well as how it wants to move, and therefore are essential
 	// for any data driven animation system. They are also used throughout the system for various functions,
@@ -1173,7 +1174,7 @@ void AALSBaseCharacter::UpdateGroundedRotation(float DeltaTime)
 			}
 			else if (RotationMode == EALSRotationMode::LookingDirection)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("RotationMode == EALSRotationMode::LookingDirection"));
+				//UE_LOG(LogTemp, Warning, TEXT("RotationMode == EALSRotationMode::LookingDirection"));
 				// Looking Direction Rotation
 				float YawValue;
 				if (Gait == EALSGait::Sprinting)
@@ -1215,7 +1216,7 @@ void AALSBaseCharacter::UpdateGroundedRotation(float DeltaTime)
 			// and is calculated for animations that are animated at 30fps.
 
 			const float RotAmountCurve = MainAnimInstance->GetCurveValue(FName(TEXT("RotationAmount")));
-
+			//UE_LOG(LogTemp, Warning, TEXT("RotAmountCurve Value: %f"), MainAnimInstance->GetCurveValue(FName(TEXT("RotationAmount"))));
 			if (FMath::Abs(RotAmountCurve) > 0.001f)
 			{
 				float DeltaYaw = RotAmountCurve * (DeltaTime / (1.0f / 30.0f));
@@ -1231,6 +1232,7 @@ void AALSBaseCharacter::UpdateGroundedRotation(float DeltaTime)
 					FQuat CurrentRotation = GetActorQuat();
 					SetActorRotation((CurrentRotation * DeltaQuatYaw).Rotator());
 				}
+				
 				TargetRotation = GetActorRotation();
 			}
 		}
@@ -1603,15 +1605,37 @@ float AALSBaseCharacter::CalculateGroundedRotationRate() const
 void AALSBaseCharacter::LimitRotation(float AimYawMin, float AimYawMax, float InterpSpeed, float DeltaTime)
 {
 	// Prevent the character from rotating past a certain angle.
-	FRotator Delta = AimingRotation - GetActorRotation();
+	FVector QuatYawForward = UKismetMathLibrary::GetForwardVector(QuatYawRotation);
+	float DeltaQuatDot = FVector::DotProduct(QuatYawForward, GetCapsuleComponent()->GetForwardVector());
+	float DeltaQuatAcos = FMath::Acos(DeltaQuatDot);
+	float DeltaQuatYaw = DeltaQuatAcos * 57.2958;
+
+	float RightDot = FVector::DotProduct(QuatYawForward, GetCapsuleComponent()->GetRightVector());
+	//if the  dot product between Quatyaw rotation and actor right vector is greater than 0, we rotate right. 
+	if (RightDot > 0)
+	{
+		DeltaQuatYaw *= -1.f;
+	}
+	FRotator Delta = FRotator(0.0f, DeltaQuatYaw, 0.0f);
+	
 	Delta.Normalize();
+	
+	UE_LOG(LogTemp, Warning, TEXT("DeltaQuatYaw: %f,  DeltaYaw: %f"), DeltaQuatYaw, Delta.Yaw);
+	
 	const float RangeVal = Delta.Yaw;
 
 	if (RangeVal < AimYawMin || RangeVal > AimYawMax)
 	{
-		const float ControlRotYaw = AimingRotation.Yaw;
-		const float TargetYaw = ControlRotYaw + (RangeVal > 0.0f ? AimYawMin : AimYawMax);
-		SmoothCharacterRotation({0.0f, TargetYaw, 0.0f}, 0.0f, InterpSpeed, DeltaTime);
+		
+	
+		//const float TargetYaw = ControlRotQuatYaw + (RangeVal > 0.0f ? AimYawMin : AimYawMax);
+		FQuat TargetDelta = FRotator(0.f, (RangeVal > 0.0f ? AimYawMin : AimYawMax),0.f).Quaternion();
+		FQuat DeltaQuat = Delta.Quaternion();
+		FQuat TargetQuat = GetActorRotation().Quaternion() * TargetDelta;
+		SmoothCharacterRotation(TargetQuat.Rotator(), 0.0f, InterpSpeed, DeltaTime);
+		//const float ControlRotYaw = AimingRotation.Yaw;
+		//const float TargetYaw = ControlRotYaw + (RangeVal > 0.0f ? AimYawMin : AimYawMax);
+		//SmoothCharacterRotation({0.0f, TargetYaw, 0.0f}, 0.0f, InterpSpeed, DeltaTime);
 	}
 }
 

@@ -426,6 +426,7 @@ protected:
 
 	void SmoothCharacterRotation(FRotator Target, float TargetInterpSpeed, float ActorInterpSpeed, float DeltaTime);
 
+
 	void SmoothGravityCharacterRotation(FRotator Target, float TargetInterpSpeed, float ActorInterpSpeed, float DeltaTime);
 
 	float CalculateGroundedRotationRate() const;
@@ -603,6 +604,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Replicated, Category = "ALS|Essential Information")
 	FRotator ReplicatedControlRotation = FRotator::ZeroRotator;
 
+	UPROPERTY(BlueprintReadOnly, Replicated, Category = "ALS|Essential Information")
+		FRotator ReplicatedQuatYawRotation = FRotator::ZeroRotator;
+
 	/** State Values */
 
 	UPROPERTY(BlueprintReadOnly, Category = "ALS|State Values")
@@ -723,6 +727,7 @@ protected:
 
 	/* Smooth out aiming by interping control rotation*/
 	FRotator AimingRotation = FRotator::ZeroRotator;
+	FRotator QuatYawRotation = FRotator::ZeroRotator;
 
 	/** We won't use curve based movement on networked games */
 	bool bDisableCurvedMovement = false;

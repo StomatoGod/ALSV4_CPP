@@ -2738,7 +2738,7 @@ void UALSCharacterMovementComponent::UpdateComponentRotation()
 	// Intentionally not using MoveUpdatedComponent to bypass constraints.
 	UpdatedComponent->MoveComponent(FVector::ZeroVector, RotationMatrix.Rotator(), true);
 
-	UE_LOG(LogTemp, Log, TEXT("UpdatedComponent UpVector: %s"), *GetCapsuleRotation().Rotator().ToString());
+	//UE_LOG(LogTemp, Log, TEXT("UpdatedComponent UpVector: %s"), *GetCapsuleRotation().Rotator().ToString());
 }
 
 inline FQuat UALSCharacterMovementComponent::GetCapsuleRotation() const
