@@ -100,6 +100,10 @@ void UALSCharacterAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	}
 }
 
+void UALSCharacterAnimInstance::GatherVoxels()
+{
+}
+
 void UALSCharacterAnimInstance::PlayTransition(const FALSDynamicMontageParams& Parameters)
 {
 	PlaySlotAnimationAsDynamicMontage(Parameters.Animation, FName(TEXT("Grounded Slot")),

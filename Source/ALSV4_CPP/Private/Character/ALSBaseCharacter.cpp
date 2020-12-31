@@ -26,6 +26,7 @@
 #include "DrawDebugHelpers.h"
 
 
+
 AALSBaseCharacter::AALSBaseCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UALSCharacterMovementComponent>(CharacterMovementComponentName))
 {
@@ -170,6 +171,7 @@ void AALSBaseCharacter::BeginPlay()
 	// Set default rotation values.
 	TargetRotation = GetActorRotation();
 	LastVelocityRotation = TargetRotation;
+	LastVelocityDirection = GetActorForwardVector();
 	LastMovementInputRotation = TargetRotation;
 
 	if (GetLocalRole() == ROLE_SimulatedProxy)
@@ -1075,6 +1077,7 @@ void AALSBaseCharacter::SetEssentialValues(float DeltaTime)
 	if (bIsMoving)
 	{
 		LastVelocityRotation = CurrentVel.ToOrientationRotator();
+		LastVelocityDirection = CurrentVel;
 	}
 
 	// Determine if the character has movement input by getting its movement input amount.
@@ -1179,7 +1182,19 @@ void AALSBaseCharacter::UpdateGroundedRotation(float DeltaTime)
 				float YawValue;
 				if (Gait == EALSGait::Sprinting)
 				{
-					YawValue = LastVelocityRotation.Yaw;
+					
+					FVector QuatYawForward = UKismetMathLibrary::GetForwardVector(QuatYawRotation);
+					float DeltaQuatDot = FVector::DotProduct(QuatYawForward, LastVelocityDirection);
+					float DeltaQuatAcos = FMath::Acos(DeltaQuatDot);
+					float DeltaQuatYaw = DeltaQuatAcos * 57.2958;
+
+					float RightDot = FVector::DotProduct(QuatYawForward, GetCapsuleComponent()->GetRightVector());
+					//Do the opposite of Limit rotation since we are subtracting this rotation from our current forward control rotation
+					if (RightDot < 0)
+					{
+						DeltaQuatYaw *= -1.f;
+					}
+					YawValue = DeltaQuatYaw;
 				}
 				else
 				{
@@ -1198,7 +1213,7 @@ void AALSBaseCharacter::UpdateGroundedRotation(float DeltaTime)
 			else if (RotationMode == EALSRotationMode::Aiming)
 			{
 				const float ControlYaw = AimingRotation.Yaw;
-				SmoothCharacterRotation({0.0f, ControlYaw, 0.0f}, 1000.0f, 20.0f, DeltaTime);
+				SmoothCharacterRotation(QuatYawRotation, 1000.0f, 20.0f, DeltaTime);
 			}
 		}
 		else
@@ -1626,24 +1641,18 @@ void AALSBaseCharacter::LimitRotation(float AimYawMin, float AimYawMax, float In
 
 	if (RangeVal < AimYawMin || RangeVal > AimYawMax)
 	{
-		
-	
-		//const float TargetYaw = ControlRotQuatYaw + (RangeVal > 0.0f ? AimYawMin : AimYawMax);
 		FQuat TargetDelta = FRotator(0.f, (RangeVal > 0.0f ? AimYawMin : AimYawMax),0.f).Quaternion();
 		FQuat DeltaQuat = Delta.Quaternion();
 		FQuat TargetQuat = GetActorRotation().Quaternion() * TargetDelta;
 		SmoothCharacterRotation(TargetQuat.Rotator(), 0.0f, InterpSpeed, DeltaTime);
-		//const float ControlRotYaw = AimingRotation.Yaw;
-		//const float TargetYaw = ControlRotYaw + (RangeVal > 0.0f ? AimYawMin : AimYawMax);
-		//SmoothCharacterRotation({0.0f, TargetYaw, 0.0f}, 0.0f, InterpSpeed, DeltaTime);
 	}
 }
 
 void AALSBaseCharacter::GetControlForwardRightVector(FVector& Forward, FVector& Right) const
 {
 	const FRotator ControlRot(0.0f, AimingRotation.Yaw, 0.0f);
-	Forward = GetInputAxisValue("MoveForward/Backwards") * UKismetMathLibrary::GetForwardVector(ControlRot);
-	Right = GetInputAxisValue("MoveRight/Left") * UKismetMathLibrary::GetRightVector(ControlRot);
+	Forward = GetInputAxisValue("MoveForward/Backwards") * CapsuleSlerper->GetRightVector();
+	Right = GetInputAxisValue("MoveRight/Left") * CapsuleSlerper->GetForwardVector();
 }
 
 FVector AALSBaseCharacter::GetPlayerMovementInput() const

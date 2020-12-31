@@ -582,6 +582,9 @@ protected:
 	FRotator LastVelocityRotation;
 
 	UPROPERTY(BlueprintReadOnly, Category = "ALS|Essential Information")
+	FVector LastVelocityDirection;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ALS|Essential Information")
 	FRotator LastMovementInputRotation;
 
 	UPROPERTY(BlueprintReadOnly, Category = "ALS|Essential Information")

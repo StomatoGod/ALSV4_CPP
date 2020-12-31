@@ -32,6 +32,9 @@ public:
 	virtual void NativeInitializeAnimation() override;
 
 	virtual void NativeUpdateAnimation(float DeltaSeconds) override;
+	
+	UFUNCTION(BlueprintCallable, Category = Voxels)
+		void GatherVoxels();
 
 	UFUNCTION(BlueprintCallable)
 	void PlayTransition(const FALSDynamicMontageParams& Parameters);
