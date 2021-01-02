@@ -38,9 +38,6 @@ void AALSPlayerCameraManager::OnPossess(AALSBaseCharacter* NewCharacter)
 		SetActorLocation(TPSLoc);
 		SmoothedPivotTarget.SetLocation(TPSLoc);
 	}
-
-	SetViewTarget(ControlledCharacter);
-	
 }
 
 float AALSPlayerCameraManager::GetCameraBehaviorParam(FName CurveName) const
@@ -73,8 +70,8 @@ void AALSPlayerCameraManager::UpdateViewTargetInternal(FTViewTarget& OutVT, floa
 }
 
 FVector AALSPlayerCameraManager::CalculateAxisIndependentLag(FVector CurrentLocation, FVector TargetLocation,
-                                                             FRotator CameraRotation, FVector LagSpeeds,
-                                                             float DeltaTime)
+	FRotator CameraRotation, FVector LagSpeeds,
+	float DeltaTime)
 {
 	CameraRotation.Roll = 0.0f;
 	CameraRotation.Pitch = 0.0f;
@@ -91,8 +88,6 @@ FVector AALSPlayerCameraManager::CalculateAxisIndependentLag(FVector CurrentLoca
 
 bool AALSPlayerCameraManager::CustomCameraBehavior(float DeltaTime, FVector& Location, FRotator& Rotation, float& FOV)
 {
-
-
 	if (!ControlledCharacter)
 	{
 		return false;
@@ -101,9 +96,6 @@ bool AALSPlayerCameraManager::CustomCameraBehavior(float DeltaTime, FVector& Loc
 	// Step 1: Get Camera Parameters from CharacterBP via the Camera Interface
 	const FTransform& PivotTarget = ControlledCharacter->GetThirdPersonPivotTarget();
 	const FVector& FPTarget = ControlledCharacter->GetFirstPersonCameraTarget();
-	
-
-
 	float TPFOV = 90.0f;
 	float FPFOV = 90.0f;
 	bool bRightShoulder = false;
@@ -111,21 +103,21 @@ bool AALSPlayerCameraManager::CustomCameraBehavior(float DeltaTime, FVector& Loc
 
 	// Step 2: Calculate Target Camera Rotation. Use the Control Rotation and interpolate for smooth camera rotation.
 	const FRotator& InterpResult = FMath::RInterpTo(GetCameraRotation(),
-	                                                GetOwningPlayerController()->GetControlRotation(), DeltaTime,
-	                                                GetCameraBehaviorParam(FName(TEXT("RotationLagSpeed"))));
+		GetOwningPlayerController()->GetControlRotation(), DeltaTime,
+		GetCameraBehaviorParam(FName(TEXT("RotationLagSpeed"))));
 
 	TargetCameraRotation = UKismetMathLibrary::RLerp(InterpResult, DebugViewRotation,
-	                                                 GetCameraBehaviorParam(TEXT("Override_Debug")), true);
+		GetCameraBehaviorParam(TEXT("Override_Debug")), true);
 
 	// Step 3: Calculate the Smoothed Pivot Target (Orange Sphere).
 	// Get the 3P Pivot Target (Green Sphere) and interpolate using axis independent lag for maximum control.
 	const FVector LagSpd(GetCameraBehaviorParam(FName(TEXT("PivotLagSpeed_X"))),
-	                     GetCameraBehaviorParam(FName(TEXT("PivotLagSpeed_Y"))),
-	                     GetCameraBehaviorParam(FName(TEXT("PivotLagSpeed_Z"))));
+		GetCameraBehaviorParam(FName(TEXT("PivotLagSpeed_Y"))),
+		GetCameraBehaviorParam(FName(TEXT("PivotLagSpeed_Z"))));
 
 	const FVector& AxisIndpLag = CalculateAxisIndependentLag(SmoothedPivotTarget.GetLocation(),
-	                                                         PivotTarget.GetLocation(), TargetCameraRotation, LagSpd,
-	                                                         DeltaTime);
+		PivotTarget.GetLocation(), TargetCameraRotation, LagSpd,
+		DeltaTime);
 
 	SmoothedPivotTarget.SetRotation(PivotTarget.GetRotation());
 	SmoothedPivotTarget.SetLocation(AxisIndpLag);
@@ -169,7 +161,7 @@ bool AALSPlayerCameraManager::CustomCameraBehavior(float DeltaTime, FVector& Loc
 
 	FHitResult HitResult;
 	World->SweepSingleByChannel(HitResult, TraceOrigin, TargetCameraLocation, FQuat::Identity,
-	                            TraceChannel, FCollisionShape::MakeSphere(TraceRadius), Params);
+		TraceChannel, FCollisionShape::MakeSphere(TraceRadius), Params);
 
 	if (HitResult.IsValidBlockingHit())
 	{
@@ -184,17 +176,15 @@ bool AALSPlayerCameraManager::CustomCameraBehavior(float DeltaTime, FVector& Loc
 	FTransform FPTargetCameraTransform(TargetCameraRotation, FPTarget, FVector::OneVector);
 
 	const FTransform& MixedTransform = UKismetMathLibrary::TLerp(TargetCameraTransform, FPTargetCameraTransform,
-	                                                             GetCameraBehaviorParam(
-		                                                             FName(TEXT("Weight_FirstPerson"))));
+		GetCameraBehaviorParam(
+			FName(TEXT("Weight_FirstPerson"))));
 
 	const FTransform& TargetTransform = UKismetMathLibrary::TLerp(MixedTransform,
-	                                                              FTransform(DebugViewRotation, TargetCameraLocation,
-	                                                                         FVector::OneVector),
-	                                                              GetCameraBehaviorParam(
-		                                                              FName(TEXT("Override_Debug"))));
+		FTransform(DebugViewRotation, TargetCameraLocation,
+			FVector::OneVector),
+		GetCameraBehaviorParam(
+			FName(TEXT("Override_Debug"))));
 
-
-	
 	Location = TargetTransform.GetLocation();
 	Rotation = TargetTransform.Rotator();
 	FOV = FMath::Lerp(TPFOV, FPFOV, GetCameraBehaviorParam(FName(TEXT("Weight_FirstPerson"))));

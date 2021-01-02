@@ -100,10 +100,6 @@ void UALSCharacterAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	}
 }
 
-void UALSCharacterAnimInstance::GatherVoxels()
-{
-}
-
 void UALSCharacterAnimInstance::PlayTransition(const FALSDynamicMontageParams& Parameters)
 {
 	PlaySlotAnimationAsDynamicMontage(Parameters.Animation, FName(TEXT("Grounded Slot")),
@@ -266,6 +262,7 @@ void UALSCharacterAnimInstance::UpdateFootIK(float DeltaSeconds)
 	FVector FootOffsetRTarget = FVector::ZeroVector;
 
 	// Update Foot Locking values.
+
 	SetFootLocking(DeltaSeconds, FName(TEXT("Enable_FootIK_L")), FName(TEXT("FootLock_L")),
 		FName(TEXT("ik_foot_l")), FootIKValues.FootLock_L_Alpha, FootIKValues.UseFootLockCurve_L,
 		FootIKValues.FootLock_L_Location, FootIKValues.FootLock_L_Rotation);
@@ -347,9 +344,8 @@ void UALSCharacterAnimInstance::SetFootLockOffsets(float DeltaSeconds, FVector& 
 	// to remain planted on the ground.
 	if (Character->GetCharacterMovement()->IsMovingOnGround())
 	{
-		//RotationDifference = CharacterInformation.CharacterActorRotation - Character->GetCharacterMovement()->
-		//	GetLastUpdateRotation();
-		RotationDifference = CharacterInformation.CharacterActorRotation - Character->GetCapsuleComponent()->GetComponentRotation();
+		RotationDifference = CharacterInformation.CharacterActorRotation - Character->GetCharacterMovement()->
+			GetLastUpdateRotation();
 		RotationDifference.Normalize();
 	}
 

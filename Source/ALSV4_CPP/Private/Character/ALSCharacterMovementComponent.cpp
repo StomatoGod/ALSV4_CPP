@@ -338,7 +338,7 @@ void UALSCharacterMovementComponent::OnMovementModeChanged(EMovementMode Previou
 	CharacterOwner->OnMovementModeChanged(PreviousMovementMode, PreviousCustomMode);
 }
 
-
+/**
 void UALSCharacterMovementComponent::PerformMovement(float DeltaTime)
 {
 	if (!HasValidData())
@@ -481,7 +481,7 @@ void UALSCharacterMovementComponent::PerformMovement(float DeltaTime)
 
 	LastUpdateLocation = UpdatedComponent ? UpdatedComponent->GetComponentLocation() : FVector::ZeroVector;
 }
-
+**/
 
 void UALSCharacterMovementComponent::HandleImpact(const FHitResult& Hit, float TimeSlice /*= 0.f*/, const FVector& MoveDelta /*= FVector::ZeroVector*/)
 {

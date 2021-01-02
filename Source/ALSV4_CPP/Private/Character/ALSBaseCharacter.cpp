@@ -1182,7 +1182,6 @@ void AALSBaseCharacter::UpdateGroundedRotation(float DeltaTime)
 				float YawValue;
 				if (Gait == EALSGait::Sprinting)
 				{
-					
 					FVector QuatYawForward = UKismetMathLibrary::GetForwardVector(QuatYawRotation);
 					float DeltaQuatDot = FVector::DotProduct(QuatYawForward, LastVelocityDirection);
 					float DeltaQuatAcos = FMath::Acos(DeltaQuatDot);
@@ -1235,17 +1234,24 @@ void AALSBaseCharacter::UpdateGroundedRotation(float DeltaTime)
 			if (FMath::Abs(RotAmountCurve) > 0.001f)
 			{
 				float DeltaYaw = RotAmountCurve * (DeltaTime / (1.0f / 30.0f));
+				//float DeltaYaw = 5.f * (DeltaTime / (1.0f / 30.0f));
 				FQuat DeltaQuatYaw = FRotator(0.f, DeltaYaw, 0.f).Quaternion();
-
+				//UE_LOG(LogTemp, Warning, TEXT("RotAmountCurve Value: %f"), MainAnimInstance->GetCurveValue(FName(TEXT("RotationAmount"))));
 				if (GetLocalRole() == ROLE_AutonomousProxy)
 				{	
 					FQuat TargetQuat = TargetRotation.Quaternion() * DeltaQuatYaw;
 					SetActorRotation(TargetQuat.Rotator());
+					//FQuat CurrentRotation = GetActorQuat();
+					//AddActorWorldRotation({ 0, RotAmountCurve * (DeltaTime / (1.0f / 30.0f)), 0 });
+					
 				}
 				else
 				{
+					//FQuat TargetQuat = TargetRotation.Quaternion() * DeltaQuatYaw;
+						//SetActorRotation(TargetQuat.Rotator());
 					FQuat CurrentRotation = GetActorQuat();
-					SetActorRotation((CurrentRotation * DeltaQuatYaw).Rotator());
+					AddActorWorldRotation({ 0, RotAmountCurve * (DeltaTime / (1.0f / 30.0f)), 0 });
+					
 				}
 				
 				TargetRotation = GetActorRotation();
@@ -1879,7 +1885,9 @@ void AALSBaseCharacter::WalkPressedAction()
 void AALSBaseCharacter::RagdollPressedAction()
 {
 	// Ragdoll Action: Press "Ragdoll Action" to toggle the ragdoll state on or off.
-	
+
+	MyCharacterMovementComponent->SetGravityDirection(FVector(-1.f, 0.f, 0.f));
+	/**
 	if (GetMovementState() == EALSMovementState::Ragdoll)
 	{
 		ReplicatedRagdollEnd();
@@ -1888,6 +1896,7 @@ void AALSBaseCharacter::RagdollPressedAction()
 	{
 		ReplicatedRagdollStart();
 	}
+	**/
 }
 
 void AALSBaseCharacter::VelocityDirectionPressedAction()

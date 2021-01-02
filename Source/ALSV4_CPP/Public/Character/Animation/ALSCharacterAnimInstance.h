@@ -32,50 +32,47 @@ public:
 	virtual void NativeInitializeAnimation() override;
 
 	virtual void NativeUpdateAnimation(float DeltaSeconds) override;
-	
-	UFUNCTION(BlueprintCallable, Category = Voxels)
-		void GatherVoxels();
 
 	UFUNCTION(BlueprintCallable)
-	void PlayTransition(const FALSDynamicMontageParams& Parameters);
+		void PlayTransition(const FALSDynamicMontageParams& Parameters);
 
 	UFUNCTION(BlueprintCallable)
-	void PlayTransitionChecked(const FALSDynamicMontageParams& Parameters);
+		void PlayTransitionChecked(const FALSDynamicMontageParams& Parameters);
 
 	UFUNCTION(BlueprintCallable)
-	void PlayDynamicTransition(float ReTriggerDelay, FALSDynamicMontageParams Parameters);
+		void PlayDynamicTransition(float ReTriggerDelay, FALSDynamicMontageParams Parameters);
 
 	UFUNCTION(BlueprintCallable)
-	void OnJumped();
+		void OnJumped();
 
 	UFUNCTION(BlueprintCallable)
-	void OnPivot();
+		void OnPivot();
 
 	UFUNCTION(BlueprintCallable, Category = "Grounded")
-	void SetGroundedEntryState(EALSGroundedEntryState NewGroundedEntryState)
+		void SetGroundedEntryState(EALSGroundedEntryState NewGroundedEntryState)
 	{
 		GroundedEntryState = NewGroundedEntryState;
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Grounded")
-	void SetOverlayOverrideState(int32 OverlayOverrideState)
+		void SetOverlayOverrideState(int32 OverlayOverrideState)
 	{
 		LayerBlendingValues.OverlayOverrideState = OverlayOverrideState;
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Grounded")
-	void SetTrackedHipsDirection(EALSHipsDirection HipsDirection)
+		void SetTrackedHipsDirection(EALSHipsDirection HipsDirection)
 	{
 		Grounded.TrackedHipsDirection = HipsDirection;
 	}
 
 	/** Enable Movement Animations if IsMoving and HasMovementInput, or if the Speed is greater than 150. */
 	UFUNCTION(BlueprintCallable, Category = "Grounded")
-	bool ShouldMoveCheck() const;
+		bool ShouldMoveCheck() const;
 
 	/** Only perform a Rotate In Place Check if the character is Aiming or in First Person. */
 	UFUNCTION(BlueprintCallable, Category = "Grounded")
-	bool CanRotateInPlace() const;
+		bool CanRotateInPlace() const;
 
 	/**
 	 * Only perform a Turn In Place check if the character is looking toward the camera in Third Person,
@@ -83,7 +80,7 @@ public:
 	 * states of the AnimBP so that the character can only turn while in those states..
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Grounded")
-	bool CanTurnInPlace() const;
+		bool CanTurnInPlace() const;
 
 	/**
 	 * Only perform a Dynamic Transition check if the "Enable Transition" curve is fully weighted.
@@ -91,7 +88,7 @@ public:
 	 * that the character can only transition while in those states.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Grounded")
-	bool CanDynamicTransition() const;
+		bool CanDynamicTransition() const;
 
 	/** Return mutable reference of character information to edit them easily inside character class */
 	FALSAnimCharacterInformation& GetCharacterInformationMutable()
@@ -125,8 +122,8 @@ private:
 	/** Foot IK */
 
 	void SetFootLocking(float DeltaSeconds, FName EnableFootIKCurve, FName FootLockCurve, FName IKFootBone,
-	                    float& CurFootLockAlpha, bool& UseFootLockCurve,
-	                    FVector& CurFootLockLoc, FRotator& CurFootLockRot);
+		float& CurFootLockAlpha, bool& UseFootLockCurve,
+		FVector& CurFootLockLoc, FRotator& CurFootLockRot);
 
 	void SetFootLockOffsets(float DeltaSeconds, FVector& LocalLoc, FRotator& LocalRot);
 
@@ -135,7 +132,7 @@ private:
 	void ResetIKOffsets(float DeltaSeconds);
 
 	void SetFootOffsets(float DeltaSeconds, FName EnableFootIKCurve, FName IKFootBone, FName RootBone,
-	                    FVector& CurLocationTarget, FVector& CurLocationOffset, FRotator& CurRotationOffset);
+		FVector& CurLocationTarget, FVector& CurLocationOffset, FRotator& CurRotationOffset);
 
 	/** Grounded */
 
@@ -176,124 +173,124 @@ private:
 protected:
 	/** References */
 	UPROPERTY(BlueprintReadOnly)
-	AALSBaseCharacter* Character = nullptr;
+		AALSBaseCharacter* Character = nullptr;
 
 	/** Character Information */
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Read Only Data|Character Information", Meta = (
 		ShowOnlyInnerProperties))
-	FALSAnimCharacterInformation CharacterInformation;
+		FALSAnimCharacterInformation CharacterInformation;
 public:
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Read Only Data|Character Information")
-	FALSMovementState MovementState = EALSMovementState::None;
+		FALSMovementState MovementState = EALSMovementState::None;
 
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Read Only Data|Character Information")
-	FALSMovementAction MovementAction = EALSMovementAction::None;
+		FALSMovementAction MovementAction = EALSMovementAction::None;
 
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Read Only Data|Character Information")
-	FALSRotationMode RotationMode = EALSRotationMode::LookingDirection;
+		FALSRotationMode RotationMode = EALSRotationMode::LookingDirection;
 
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Read Only Data|Character Information")
-	FALSGait Gait = EALSGait::Walking;
+		FALSGait Gait = EALSGait::Walking;
 
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Read Only Data|Character Information")
-	FALSStance Stance = EALSStance::Standing;
+		FALSStance Stance = EALSStance::Standing;
 
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Read Only Data|Character Information")
-	FALSOverlayState OverlayState = EALSOverlayState::Default;
+		FALSOverlayState OverlayState = EALSOverlayState::Default;
 protected:
 	/** Anim Graph - Grounded */
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Read Only Data|Anim Graph - Grounded", Meta = (
 		ShowOnlyInnerProperties))
-	FALSAnimGraphGrounded Grounded;
+		FALSAnimGraphGrounded Grounded;
 public:
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Read Only Data|Anim Graph - Grounded")
-	FALSVelocityBlend VelocityBlend;
+		FALSVelocityBlend VelocityBlend;
 
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Read Only Data|Anim Graph - Grounded")
-	FALSLeanAmount LeanAmount;
+		FALSLeanAmount LeanAmount;
 
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Read Only Data|Anim Graph - Grounded")
-	FVector RelativeAccelerationAmount = FVector::ZeroVector;
+		FVector RelativeAccelerationAmount = FVector::ZeroVector;
 
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Read Only Data|Anim Graph - Grounded")
-	FALSGroundedEntryState GroundedEntryState = EALSGroundedEntryState::None;
+		FALSGroundedEntryState GroundedEntryState = EALSGroundedEntryState::None;
 
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Read Only Data|Anim Graph - Grounded")
-	FALSMovementDirection MovementDirection = EALSMovementDirection::Forward;
+		FALSMovementDirection MovementDirection = EALSMovementDirection::Forward;
 protected:
 	/** Anim Graph - In Air */
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Read Only Data|Anim Graph - In Air", Meta = (
 		ShowOnlyInnerProperties))
-	FALSAnimGraphInAir InAir;
+		FALSAnimGraphInAir InAir;
 
 	/** Anim Graph - Aiming Values */
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Read Only Data|Anim Graph - Aiming Values", Meta = (
 		ShowOnlyInnerProperties))
-	FALSAnimGraphAimingValues AimingValues;
+		FALSAnimGraphAimingValues AimingValues;
 public:
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Read Only Data|Anim Graph - Aiming Values")
-	FVector2D SmoothedAimingAngle = FVector2D::ZeroVector;
+		FVector2D SmoothedAimingAngle = FVector2D::ZeroVector;
 protected:
 	/** Anim Graph - Ragdoll */
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Read Only Data|Anim Graph - Ragdoll")
-	float FlailRate = 0.0f;
+		float FlailRate = 0.0f;
 
 	/** Anim Graph - Layer Blending */
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Read Only Data|Anim Graph - Layer Blending", Meta = (
 		ShowOnlyInnerProperties))
-	FALSAnimGraphLayerBlending LayerBlendingValues;
+		FALSAnimGraphLayerBlending LayerBlendingValues;
 
 	/** Anim Graph - Foot IK */
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Read Only Data|Anim Graph - Foot IK", Meta = (
 		ShowOnlyInnerProperties))
-	FALSAnimGraphFootIK FootIKValues;
+		FALSAnimGraphFootIK FootIKValues;
 
 	/** Turn In Place */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration|Turn In Place", Meta = (
 		ShowOnlyInnerProperties))
-	FALSAnimTurnInPlace TurnInPlaceValues;
+		FALSAnimTurnInPlace TurnInPlaceValues;
 
 	/** Rotate In Place */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration|Rotate In Place", Meta = (
 		ShowOnlyInnerProperties))
-	FALSAnimRotateInPlace RotateInPlace;
+		FALSAnimRotateInPlace RotateInPlace;
 
 	/** Configuration */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration|Main Configuration", Meta = (
 		ShowOnlyInnerProperties))
-	FALSAnimConfiguration Config;
+		FALSAnimConfiguration Config;
 
 	/** Blend Curves */
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration|Blend Curves")
-	UCurveFloat* DiagonalScaleAmountCurve = nullptr;
+		UCurveFloat* DiagonalScaleAmountCurve = nullptr;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration|Blend Curves")
-	UCurveFloat* StrideBlend_N_Walk = nullptr;
+		UCurveFloat* StrideBlend_N_Walk = nullptr;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration|Blend Curves")
-	UCurveFloat* StrideBlend_N_Run = nullptr;
+		UCurveFloat* StrideBlend_N_Run = nullptr;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration|Blend Curves")
-	UCurveFloat* StrideBlend_C_Walk = nullptr;
+		UCurveFloat* StrideBlend_C_Walk = nullptr;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration|Blend Curves")
-	UCurveFloat* LandPredictionCurve = nullptr;
+		UCurveFloat* LandPredictionCurve = nullptr;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration|Blend Curves")
-	UCurveFloat* LeanInAirCurve = nullptr;
+		UCurveFloat* LeanInAirCurve = nullptr;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration|Blend Curves")
-	UCurveVector* YawOffset_FB = nullptr;
+		UCurveVector* YawOffset_FB = nullptr;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration|Blend Curves")
-	UCurveVector* YawOffset_LR = nullptr;
+		UCurveVector* YawOffset_LR = nullptr;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration|Dynamic Transition")
-	UAnimSequenceBase* TransitionAnim_R = nullptr;
+		UAnimSequenceBase* TransitionAnim_R = nullptr;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration|Dynamic Transition")
-	UAnimSequenceBase* TransitionAnim_L = nullptr;
+		UAnimSequenceBase* TransitionAnim_L = nullptr;
 
 private:
 	FTimerHandle OnPivotTimer;
