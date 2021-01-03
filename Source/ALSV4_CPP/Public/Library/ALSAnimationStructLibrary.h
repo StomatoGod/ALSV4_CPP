@@ -94,6 +94,12 @@ struct FALSAnimCharacterInformation
 	GENERATED_BODY()
 
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly)
+	float DeltaPitch;
+
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly)
+	float DeltaYaw;
+
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly)
 	FRotator AimingRotation;
 
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly)
@@ -213,6 +219,12 @@ USTRUCT(BlueprintType)
 struct FALSAnimGraphAimingValues
 {
 	GENERATED_BODY()
+	
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly)
+	FRotator SmoothedQuatPitchRotation;
+
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly)
+	FRotator SmoothedQuatYawRotation;
 
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly)
 	FRotator SmoothedAimingRotation;

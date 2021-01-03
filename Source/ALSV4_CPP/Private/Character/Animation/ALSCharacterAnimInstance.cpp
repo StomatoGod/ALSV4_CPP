@@ -12,6 +12,7 @@
 #include "Curves/CurveVector.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Kismet/KismetMathLibrary.h"
 
 void UALSCharacterAnimInstance::NativeInitializeAnimation()
 {
@@ -37,10 +38,12 @@ void UALSCharacterAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	CharacterInformation.MovementInput = Character->GetMovementInput();
 	CharacterInformation.AimingRotation = Character->GetAimingRotation();
 	CharacterInformation.CharacterActorRotation = Character->GetActorRotation();
-
+	CharacterInformation.DeltaPitch = Character->GetDeltaPitch();
+	CharacterInformation.DeltaYaw = Character->GetDeltaYaw();
+	
 	UpdateAimingValues(DeltaSeconds);
 	UpdateLayerValues();
-	UpdateFootIK(DeltaSeconds);
+	//UpdateFootIK(DeltaSeconds);
 
 	if (MovementState.Grounded())
 	{
@@ -181,18 +184,23 @@ void UALSCharacterAnimInstance::UpdateAimingValues(float DeltaSeconds)
 		CharacterInformation.AimingRotation, DeltaSeconds,
 		Config.SmoothedAimingRotationInterpSpeed);
 
+	
+
 	// Calculate the Aiming angle and Smoothed Aiming Angle by getting
 	// the delta between the aiming rotation and the actor rotation.
 	FRotator Delta = CharacterInformation.AimingRotation - CharacterInformation.CharacterActorRotation;
 	Delta.Normalize();
 	AimingValues.AimingAngle.X = Delta.Yaw;
 	AimingValues.AimingAngle.Y = Delta.Pitch;
-
+	UpdateSmoothYawValue(DeltaSeconds);
+	UpdateSmoothPitchValue(DeltaSeconds);
+	
+	/**
 	Delta = AimingValues.SmoothedAimingRotation - CharacterInformation.CharacterActorRotation;
 	Delta.Normalize();
 	SmoothedAimingAngle.X = Delta.Yaw;
 	SmoothedAimingAngle.Y = Delta.Pitch;
-
+	**/
 	if (!RotationMode.VelocityDirection())
 	{
 		// Clamp the Aiming Pitch Angle to a range of 1 to 0 for use in the vertical aim sweeps.
@@ -209,6 +217,7 @@ void UALSCharacterAnimInstance::UpdateAimingValues(float DeltaSeconds)
 	{
 		// Get the delta between the Movement Input rotation and Actor rotation and map it to a range of 0-1.
 		// This value is used in the aim offset behavior to make the character look toward the Movement Input.
+
 		Delta = CharacterInformation.MovementInput.ToOrientationRotator() - CharacterInformation.CharacterActorRotation;
 		Delta.Normalize();
 		const float InterpTarget = FMath::GetMappedRangeValueClamped({ -180.0f, 180.0f }, { 0.0f, 1.0f }, Delta.Yaw);
@@ -220,12 +229,24 @@ void UALSCharacterAnimInstance::UpdateAimingValues(float DeltaSeconds)
 	// Separate the Aiming Yaw Angle into 3 separate Yaw Times. These 3 values are used in the Aim Offset behavior
 	// to improve the blending of the aim offset when rotating completely around the character.
 	// This allows you to keep the aiming responsive but still smoothly blend from left to right or right to left.
+	
 	AimingValues.LeftYawTime = FMath::GetMappedRangeValueClamped({ 0.0f, 180.0f }, { 0.5f, 0.0f },
 		FMath::Abs(SmoothedAimingAngle.X));
 	AimingValues.RightYawTime = FMath::GetMappedRangeValueClamped({ 0.0f, 180.0f }, { 0.5f, 1.0f },
 		FMath::Abs(SmoothedAimingAngle.X));
 	AimingValues.ForwardYawTime = FMath::GetMappedRangeValueClamped({ -180.0f, 180.0f }, { 0.0f, 1.0f },
 		SmoothedAimingAngle.X);
+		
+}
+
+void UALSCharacterAnimInstance::UpdateSmoothYawValue(float DeltaSeconds)
+{
+	SmoothedAimingAngle.X = CharacterInformation.DeltaYaw;
+}
+
+void UALSCharacterAnimInstance::UpdateSmoothPitchValue(float DeltaSeconds)
+{
+	SmoothedAimingAngle.Y = CharacterInformation.DeltaPitch;
 }
 
 void UALSCharacterAnimInstance::UpdateLayerValues()

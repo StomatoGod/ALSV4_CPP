@@ -107,6 +107,10 @@ private:
 
 	void UpdateAimingValues(float DeltaSeconds);
 
+	void UpdateSmoothYawValue(float DeltaSeconds);
+
+	void UpdateSmoothPitchValue(float DeltaSeconds);
+
 	void UpdateLayerValues();
 
 	void UpdateFootIK(float DeltaSeconds);

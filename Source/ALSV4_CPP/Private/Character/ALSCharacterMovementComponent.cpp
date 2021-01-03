@@ -338,7 +338,6 @@ void UALSCharacterMovementComponent::OnMovementModeChanged(EMovementMode Previou
 	CharacterOwner->OnMovementModeChanged(PreviousMovementMode, PreviousCustomMode);
 }
 
-/**
 void UALSCharacterMovementComponent::PerformMovement(float DeltaTime)
 {
 	if (!HasValidData())
@@ -472,7 +471,7 @@ void UALSCharacterMovementComponent::PerformMovement(float DeltaTime)
 
 		OnMovementUpdated(DeltaTime, OldLocation, OldVelocity);
 	} // End scoped movement update
-
+	const FQuat NewRotation = UpdatedComponent ? UpdatedComponent->GetComponentQuat() : FQuat::Identity;
 	  // Call external post-movement events. These happen after the scoped movement completes in case the events want to use the current state of overlaps etc.
 	CallMovementUpdateDelegate(DeltaTime, OldLocation, OldVelocity);
 
@@ -480,8 +479,9 @@ void UALSCharacterMovementComponent::PerformMovement(float DeltaTime)
 	UpdateComponentVelocity();
 
 	LastUpdateLocation = UpdatedComponent ? UpdatedComponent->GetComponentLocation() : FVector::ZeroVector;
+	LastUpdateRotation = NewRotation;
 }
-**/
+
 
 void UALSCharacterMovementComponent::HandleImpact(const FHitResult& Hit, float TimeSlice /*= 0.f*/, const FVector& MoveDelta /*= FVector::ZeroVector*/)
 {
@@ -607,11 +607,11 @@ void UALSCharacterMovementComponent::SetPostLandedPhysics(const FHitResult& Hit)
 	}
 }
 
-/**
+
 void UALSCharacterMovementComponent::PhysWalking(float deltaTime, int32 Iterations)
 {
 	//SCOPE_CYCLE_COUNTER(STAT_CharPhysWalking);
-
+	
 	if (deltaTime < MIN_TICK_TIME)
 	{
 		return;
@@ -638,7 +638,8 @@ void UALSCharacterMovementComponent::PhysWalking(float deltaTime, int32 Iteratio
 	float RemainingTime = deltaTime;
 
 	// Perform the move.
-	while (RemainingTime >= MIN_TICK_TIME && Iterations < MaxSimulationIterations && CharacterOwner && (CharacterOwner->Controller || bRunPhysicsWithNoController || HasAnimRootMotion() ))
+	//while (RemainingTime >= MIN_TICK_TIME && Iterations < MaxSimulationIterations && CharacterOwner && (CharacterOwner->Controller || bRunPhysicsWithNoController || HasAnimRootMotion()))
+	while ((RemainingTime >= MIN_TICK_TIME) && (Iterations < MaxSimulationIterations) && CharacterOwner && (CharacterOwner->Controller || bRunPhysicsWithNoController || HasAnimRootMotion() || CurrentRootMotion.HasOverrideVelocity() || (CharacterOwner->GetLocalRole() == ROLE_SimulatedProxy)))
 	{
 		Iterations++;
 		bJustTeleported = false;
@@ -659,7 +660,7 @@ void UALSCharacterMovementComponent::PhysWalking(float deltaTime, int32 Iteratio
 		// Apply acceleration.
 		if (!HasAnimRootMotion())
 		{
-			CalcVelocity(TimeTick, GroundFriction, false, 0);
+			CalcVelocity(TimeTick, GroundFriction, false, GetMaxBrakingDeceleration());
 		}
 
 		checkf(!Velocity.ContainsNaN(), TEXT("PhysWalking: Velocity contains NaN after CalcVelocity (%s: %s)\n%s"), *GetPathNameSafe(this), *GetPathNameSafe(GetOuter()), *Velocity.ToString());
@@ -805,6 +806,7 @@ void UALSCharacterMovementComponent::PhysWalking(float deltaTime, int32 Iteratio
 			if (!bJustTeleported && !HasAnimRootMotion() && TimeTick >= MIN_TICK_TIME)
 			{
 				Velocity = (CharacterOwner->GetActorLocation() - OldLocation) / TimeTick;
+				MaintainHorizontalGroundVelocity();
 			}
 		}
 
@@ -821,7 +823,7 @@ void UALSCharacterMovementComponent::PhysWalking(float deltaTime, int32 Iteratio
 		MaintainHorizontalGroundVelocity();
 	}
 }
-**/
+
 FVector UALSCharacterMovementComponent::ComputeGroundMovementDelta(const FVector& Delta, const FHitResult& RampHit, const bool bHitFromLineTrace) const	// OK
 {
 	const FVector FloorNormal = RampHit.ImpactNormal;

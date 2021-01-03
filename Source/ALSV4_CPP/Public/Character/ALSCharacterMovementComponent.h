@@ -123,7 +123,7 @@ protected:
 	virtual void PhysFlying(float deltaTime, int32 Iterations) override;
 	virtual float BoostAirControl(float DeltaTime, float TickAirControl, const FVector& FallAcceleration) override;
 	virtual void OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode) override;
-	//virtual void PerformMovement(float DeltaTime) override;
+	virtual void PerformMovement(float DeltaTime) override;
 	virtual void HandleImpact(const FHitResult& Hit, float TimeSlice = 0.f, const FVector& MoveDelta = FVector::ZeroVector) override;
 	virtual void ProcessLanded(const FHitResult& Hit, float remainingTime, int32 Iterations) override;
 
@@ -131,7 +131,7 @@ protected:
 	virtual void MaintainHorizontalGroundVelocity() override;
 	virtual float SlideAlongSurface(const FVector& Delta, float Time, const FVector& Normal, FHitResult& Hit, bool bHandleImpact) override;
 	virtual void SetPostLandedPhysics(const FHitResult& Hit) override;
-	//virtual void PhysWalking(float deltaTime, int32 Iterations) override;
+	virtual void PhysWalking(float deltaTime, int32 Iterations) override;
 	virtual FVector ComputeGroundMovementDelta(const FVector& Delta, const FHitResult& RampHit, const bool bHitFromLineTrace) const override;
 	virtual void MoveAlongFloor(const FVector& InVelocity, float DeltaSeconds, FStepDownResult* OutStepDownResult = NULL) override;
 	virtual void SimulateMovement(float DeltaTime) override;

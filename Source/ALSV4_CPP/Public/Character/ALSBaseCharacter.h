@@ -90,6 +90,9 @@ public:
 	UFUNCTION(BlueprintCallable, Server, Unreliable, Category = "Camera System")
 		void Server_SetCameraRotation(FRotator Rot);
 
+	UFUNCTION(BlueprintCallable, Server, Unreliable, Category = "Camera System")
+		void Server_SetPitchAndYaw(float Yaw, float Pitch, FRotator SlerperRotation);
+
 	/** Character States */
 
 	UFUNCTION(BlueprintCallable, Category = "ALS|Character States")
@@ -350,6 +353,12 @@ public:
 	UFUNCTION(BlueprintCallable)
 	FRotator GetAimingRotation() const { return AimingRotation; }
 
+	UFUNCTION(BlueprintCallable)
+	float GetDeltaPitch() const { return DeltaPitch; }
+
+	UFUNCTION(BlueprintCallable)
+		float GetDeltaYaw() const { return DeltaYaw; }
+
 	UFUNCTION(BlueprintGetter, Category = "ALS|Essential Information")
 	float GetAimYawRate() const { return AimYawRate; }
 
@@ -423,6 +432,8 @@ protected:
 	/** Utils */
 
 	float GetMappedSpeed() const;
+
+	void SmoothCharacterRotationYaw(float DeltaQuatYaw, FRotator Target, float TargetInterpSpeed, float ActorInterpSpeed, float DeltaTime);
 
 	void SmoothCharacterRotation(FRotator Target, float TargetInterpSpeed, float ActorInterpSpeed, float DeltaTime);
 
@@ -731,6 +742,13 @@ protected:
 	/* Smooth out aiming by interping control rotation*/
 	FRotator AimingRotation = FRotator::ZeroRotator;
 	FRotator QuatYawRotation = FRotator::ZeroRotator;
+	UPROPERTY(BlueprintReadOnly, Replicated, Category = "CameraSystem")
+	float DeltaPitch = 0.f;
+	UPROPERTY(BlueprintReadOnly, Replicated, Category = "CameraSystem")
+	float DeltaYaw = 0.f;
+
+	void UpdateDeltaPitch();
+	void UpdateDeltaYaw();
 
 	/** We won't use curve based movement on networked games */
 	bool bDisableCurvedMovement = false;
