@@ -182,6 +182,7 @@ FVector UALSCharacterMovementComponent::GetGravityDirection(bool bAvoidZeroGravi
 
 void UALSCharacterMovementComponent::SetGravityDirection(FVector NewGravityDirection)
 {
+
 	CustomGravityDirection = NewGravityDirection.GetSafeNormal();
 }
 
@@ -2492,7 +2493,10 @@ void UALSCharacterMovementComponent::CalcVelocity(float DeltaTime, float Frictio
 
 	if (bShowDebugLines)
 	{
+	
+		
 		UE_LOG(LogTemp, Log, TEXT("Requested acceleration %s    Acceleration %s    Velocity %s"), *RequestedAcceleration.ToString(), *Acceleration.ToString(), *Velocity.ToString());
+		
 	}
 }
 
@@ -2732,10 +2736,14 @@ void UALSCharacterMovementComponent::UpdateComponentRotation()
 		return;
 	}
 
+	const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(DesiredCapsuleUp, UpdatedComponent->GetForwardVector());
+	// float Dot = FMath::Abs(FVector::DotProduct(DesiredCapsuleUp, GetCapsuleAxisZ()));
+	//FVector RotationMatrixUp = FQuat::Slerp(UpdatedComponent->GetComponentQuat(), RotationMatrix.Rotator().Quaternion(), DeltaTime).GetUpVector();
 	
+	//const FMatrix NewRotationMatrix = FRotationMatrix::MakeFromZX(RotationMatrixUp, UpdatedComponent->GetForwardVector());
 	// Take desired Z rotation axis of capsule, try to keep current X rotation axis of capsule.
 	//const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(DesiredCapsuleUp, GetCapsuleAxisX());
-	const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(DesiredCapsuleUp, UpdatedComponent->GetForwardVector());
+	
 
 	// Intentionally not using MoveUpdatedComponent to bypass constraints.
 	UpdatedComponent->MoveComponent(FVector::ZeroVector, RotationMatrix.Rotator(), true);

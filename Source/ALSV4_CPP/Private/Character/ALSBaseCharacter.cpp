@@ -186,6 +186,7 @@ void AALSBaseCharacter::BeginPlay()
 
 	CapsuleSlerper->SetWorldLocation(GetCapsuleComponent()->GetComponentLocation());
 	CapsuleSlerper->SetWorldRotation(GetCapsuleComponent()->GetComponentRotation().Quaternion());
+
 	RotationMode = EALSRotationMode::LookingDirection;
 
 	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
@@ -220,6 +221,8 @@ void AALSBaseCharacter::SetGravityDirection(FVector Direction)
 void AALSBaseCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	//GetMesh()->GetPhysicsAsset()->gravitydire
 	CapsuleSlerper->SetWorldLocation(GetCapsuleComponent()->GetComponentLocation());
 	//CapsuleSlerper->SetWorldRotation(GetCapsuleComponent()->GetComponentRotation().Quaternion());
 	
@@ -276,7 +279,8 @@ void AALSBaseCharacter::Tick(float DeltaTime)
 	else
 	{
 		const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(CapsuleUp, CapsuleSlerper->GetForwardVector());
-		CapsuleSlerper->MoveComponent(FVector::ZeroVector, RotationMatrix.Rotator(), false);
+		CapsuleSlerper->SetWorldRotation(FQuat::Slerp(CapsuleSlerper->GetComponentRotation().Quaternion(), RotationMatrix.Rotator().Quaternion(), RotationLerpRate * DeltaTime));
+		//CapsuleSlerper->MoveComponent(FVector::ZeroVector, RotationMatrix.Rotator(), false);
 	}
 
 		
@@ -1672,15 +1676,15 @@ void AALSBaseCharacter::LimitRotation(float AimYawMin, float AimYawMax, float In
 	
 	Delta.Normalize();
 	
-	UE_LOG(LogTemp, Warning, TEXT("DeltaQuatYaw: %f,  DeltaYaw: %f"), DeltaQuatYaw, Delta.Yaw);
+	//UE_LOG(LogTemp, Warning, TEXT("DeltaQuatYaw: %f,  DeltaYaw: %f"), DeltaQuatYaw, Delta.Yaw);
 	
 	const float RangeVal = Delta.Yaw;
 
 	if (RangeVal < AimYawMin || RangeVal > AimYawMax)
 	{
-		FQuat TargetDelta = FRotator(0.f, (RangeVal > 0.0f ? AimYawMin : AimYawMax),0.f).Quaternion();
+		//FQuat TargetDelta = FRotator(0.f, (RangeVal > 0.0f ? AimYawMin : AimYawMax),0.f).Quaternion();
 		FQuat DeltaQuat = Delta.Quaternion();
-		FQuat TargetQuat = GetActorRotation().Quaternion() * TargetDelta;
+		FQuat TargetQuat = GetActorRotation().Quaternion() * DeltaQuat;
 		SmoothCharacterRotation(TargetQuat.Rotator(), 0.0f, InterpSpeed, DeltaTime);
 	}
 }
@@ -1995,7 +1999,7 @@ void AALSBaseCharacter::UpdateDeltaPitch()
 		float DeltaQuatPitch = DeltaQuatAcos * 57.2958;
 
 		float UpDot = FVector::DotProduct(PitchForward, CharacterDown);
-		//if the  dot product between Quatyaw rotation and actor right vector is greater than 0, we rotate right. 
+		
 		if (UpDot < 0)
 		{
 			DeltaQuatPitch *= -1.f;
@@ -2017,7 +2021,7 @@ void AALSBaseCharacter::UpdateDeltaYaw()
 	float DeltaQuatYaw = DeltaQuatAcos * 57.2958;
 
 	float RightDot = FVector::DotProduct(YawForward, CharacterRight);
-	//if the  dot product between Quatyaw rotation and actor right vector is greater than 0, we rotate right. 
+	//if the  dot product between Quatyaw rotation and actor right vector is less than 0, we rotate right. 
 	if (RightDot < 0)
 	{
 		DeltaQuatYaw *= -1.f;

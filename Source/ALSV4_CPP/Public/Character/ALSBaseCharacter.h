@@ -314,6 +314,7 @@ public:
 
 	virtual UCameraComponent* GetFirstPersonCamera();
 
+
 	virtual UStaticMeshComponent* GetCameraPoll();
 
 	FRotator GetFirstPersonCameraRotation();
@@ -499,7 +500,11 @@ protected:
 	UPROPERTY()
 		UALSCharacterMovementComponent* MyCharacterMovementComponent;
 
+
+
 	/** Input */
+	UPROPERTY(EditAnywhere, Category = "ALS|Input")
+	float RotationLerpRate = 1.f;
 
 	UPROPERTY(EditAnywhere, Replicated, BlueprintReadWrite, Category = "ALS|Input")
 	EALSRotationMode DesiredRotationMode = EALSRotationMode::LookingDirection;

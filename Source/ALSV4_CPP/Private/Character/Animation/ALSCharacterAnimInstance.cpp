@@ -483,6 +483,7 @@ void UALSCharacterAnimInstance::RotateInPlaceCheck()
 	// Step 1: Check if the character should rotate left or right by checking if the Aiming Angle exceeds the threshold.
 	Grounded.bRotateL = AimingValues.AimingAngle.X < RotateInPlace.RotateMinThreshold;
 	Grounded.bRotateR = AimingValues.AimingAngle.X > RotateInPlace.RotateMaxThreshold;
+	
 
 	// Step 2: If the character should be rotating, set the Rotate Rate to scale with the Aim Yaw Rate.
 	// This makes the character rotate faster when moving the camera faster.
@@ -500,7 +501,7 @@ void UALSCharacterAnimInstance::TurnInPlaceCheck(float DeltaSeconds)
 	// Step 1: Check if Aiming angle is outside of the Turn Check Min Angle, and if the Aim Yaw Rate is below the Aim Yaw Rate Limit.
 	// If so, begin counting the Elapsed Delay Time. If not, reset the Elapsed Delay Time.
 	// This ensures the conditions remain true for a sustained peroid of time before turning in place.
-	if (FMath::Abs(AimingValues.AimingAngle.X) <= TurnInPlaceValues.TurnCheckMinAngle ||
+	if (FMath::Abs(CharacterInformation.DeltaYaw) <= TurnInPlaceValues.TurnCheckMinAngle ||
 		CharacterInformation.AimYawRate >= TurnInPlaceValues.AimYawRateLimit)
 	{
 		TurnInPlaceValues.ElapsedDelayTime = 0.0f;
@@ -513,15 +514,12 @@ void UALSCharacterAnimInstance::TurnInPlaceCheck(float DeltaSeconds)
 																		TurnInPlaceValues.MinAngleDelay,
 																		TurnInPlaceValues.MaxAngleDelay
 																	},
-		AimingValues.AimingAngle.X);
-
+		CharacterInformation.DeltaYaw);
 	// Step 2: Check if the Elapsed Delay time exceeds the set delay (mapped to the turn angle range). If so, trigger a Turn In Place.
 	if (TurnInPlaceValues.ElapsedDelayTime > ClampedAimAngle)
 	{
-		FRotator TurnInPlaceYawRot = CharacterInformation.AimingRotation;
-		TurnInPlaceYawRot.Roll = 0.0f;
-		TurnInPlaceYawRot.Pitch = 0.0f;
-		TurnInPlace(TurnInPlaceYawRot, 1.0f, 0.0f, false);
+		FQuat QuatTurnInPlace = CharacterInformation.CharacterActorRotation.Quaternion() * FRotator(0.f, CharacterInformation.DeltaYaw, 0.f).Quaternion();
+		TurnInPlace(QuatTurnInPlace.Rotator(), 1.0f, 0.0f, false);
 	}
 }
 
@@ -806,9 +804,7 @@ void UALSCharacterAnimInstance::TurnInPlace(FRotator TargetRotation, float PlayR
 	bool OverrideCurrent)
 {
 	// Step 1: Set Turn Angle
-	FRotator Delta = TargetRotation - CharacterInformation.CharacterActorRotation;
-	Delta.Normalize();
-	const float TurnAngle = Delta.Yaw;
+	const float TurnAngle = CharacterInformation.DeltaYaw;
 
 	FALSTurnInPlaceAsset TargetTurnAsset;
 	// Step 2: Choose Turn Asset based on the Turn Angle and Stance

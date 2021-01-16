@@ -38,6 +38,7 @@ void AQuatPlayerCameraManager::RotateComponents(FRotator DeltaRotation)
 	{
 		Character->GetCameraPoll()->AddLocalRotation(DeltaQuatYaw);
 		Character->GetFirstPersonCamera()->AddLocalRotation(DeltaQuatPitch);
+
 	}
 	
 	
