@@ -18,6 +18,7 @@ UCameraComponent* AQuatPlayerCameraManager::GetGravityPlayerCameraComponent()
 	if (AALSBaseCharacter* Character = Cast<AALSBaseCharacter>(GetViewTargetPawn()))
 	{
 		return Character->GetFirstPersonCamera();
+		return nullptr;
 	}
 	else
 	{

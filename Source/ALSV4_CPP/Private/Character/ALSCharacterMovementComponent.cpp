@@ -11,6 +11,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "DrawDebugHelpers.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "Character/ALSBaseCharacter.h"
 
 const float VERTICAL_SLOPE_NORMAL_Z = 0.001f; // Slope is vertical if Abs(Normal.Z) <= this threshold. Accounts for precision problems that sometimes angle normals slightly off horizontal for vertical surface.
@@ -1017,8 +1018,16 @@ void UALSCharacterMovementComponent::SimulateMovement(float DeltaTime)
 			}
 			else
 			{
-				if (!Gravity.IsZero() && (Velocity | Gravity) >= 0.0f)
-				{
+				// Given the lenght of the velocity vector and the gravity vector being unpredictable, we cannot get consistent dot products between them. 
+				// To compensate we will normalize both vectors using unit vector, get the dot product, and check if the dot product is below a certain threshold. 
+				// this threshold is not simply >= 0 because of the delay between the velocity being updated through replication and the rotation being updated. 
+				FVector VelocityDirection = UKismetMathLibrary::GetDirectionUnitVector(UpdatedComponent->GetComponentLocation(), UpdatedComponent->GetComponentLocation() + Velocity);
+				FVector GravUnit = UKismetMathLibrary::GetDirectionUnitVector(UpdatedComponent->GetComponentLocation(), UpdatedComponent->GetComponentLocation() + Gravity);
+				float DeltaQuatDot = FVector::DotProduct(VelocityDirection, GravUnit);
+				//UE_LOG(LogClass, Warning, TEXT(" Velocity Gravity Dot : %f"), DeltaQuatDot);
+				//if (!Gravity.IsZero() && (VelocityDirection | Gravity) >= 0.0f)
+				if (!Gravity.IsZero() && DeltaQuatDot >= -0.2f)
+				{ 
 					FindFloor(UpdatedComponent->GetComponentLocation(), CurrentFloor, Velocity.IsZero(), NULL);
 				}
 				else
@@ -2704,6 +2713,7 @@ bool UALSCharacterMovementComponent::IsWithinEdgeTolerance(const FVector& Capsul
 
 FVector UALSCharacterMovementComponent::GetGravity() const
 {
+
 	if (!CustomGravityDirection.IsZero())
 	{
 		return CustomGravityDirection * (FMath::Abs(Super::GetGravityZ()) * GravityScale);

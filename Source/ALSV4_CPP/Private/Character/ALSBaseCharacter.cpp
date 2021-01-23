@@ -80,6 +80,7 @@ void AALSBaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 	PlayerInputComponent->BindAction("AimAction", IE_Released, this, &AALSBaseCharacter::AimReleasedAction);
 	PlayerInputComponent->BindAction("CameraAction", IE_Pressed, this, &AALSBaseCharacter::CameraPressedAction);
 	PlayerInputComponent->BindAction("CameraAction", IE_Released, this, &AALSBaseCharacter::CameraReleasedAction);
+	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &AALSBaseCharacter::OnFire);
 	//test
 
 }
@@ -101,6 +102,7 @@ void AALSBaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	DOREPLIFETIME_CONDITION(AALSBaseCharacter, DeltaYaw, COND_SkipOwner);
 	DOREPLIFETIME_CONDITION(AALSBaseCharacter, ReplicatedCurrentAcceleration, COND_SkipOwner);
 	DOREPLIFETIME_CONDITION(AALSBaseCharacter, ReplicatedControlRotation, COND_SkipOwner);
+	DOREPLIFETIME_CONDITION(AALSBaseCharacter, ReplicatedGravityDirection, COND_SkipOwner);
 	
 
 	DOREPLIFETIME(AALSBaseCharacter, DesiredGait);
@@ -222,6 +224,42 @@ void AALSBaseCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	/**
+	if (!GetMyMovementComponent()->CurrentFloor.IsWalkableFloor())
+	{
+		if (GetLocalRole() == ROLE_SimulatedProxy)
+		{
+			UE_LOG(LogClass, Warning, TEXT(" ROLE_SimulatedProxy !IsWalkableFloor"));
+		}
+
+		if (GetLocalRole() == ROLE_AutonomousProxy)
+		{
+			UE_LOG(LogClass, Warning, TEXT(" ROLE_AutonomousProxy !IsWalkableFloor"));
+		}
+
+		if (GetLocalRole() == ROLE_Authority)
+		{
+			UE_LOG(LogClass, Warning, TEXT(" ROLE_Authority !IsWalkableFloor"));
+		}
+	}
+	if (GetCharacterMovement()->MovementMode == MOVE_Falling)
+	{
+		if (GetLocalRole() == ROLE_SimulatedProxy)
+		{
+			UE_LOG(LogClass, Warning, TEXT(" ROLE_SimulatedProxy FALLING"));
+		}
+
+		if (GetLocalRole() == ROLE_AutonomousProxy)
+		{
+			UE_LOG(LogClass, Warning, TEXT(" ROLE_AutonomousProxy FALLING"));
+		}
+
+		if (GetLocalRole() == ROLE_Authority)
+		{
+			UE_LOG(LogClass, Warning, TEXT(" ROLE_Authority FALLING"));
+		}
+	}
+	**/
 	//GetMesh()->GetPhysicsAsset()->gravitydire
 	CapsuleSlerper->SetWorldLocation(GetCapsuleComponent()->GetComponentLocation());
 	//CapsuleSlerper->SetWorldRotation(GetCapsuleComponent()->GetComponentRotation().Quaternion());
@@ -274,7 +312,7 @@ void AALSBaseCharacter::Tick(float DeltaTime)
 
 	if ((CapsuleUp | CapsuleSlerper->GetUpVector()) >= THRESH_NORMALS_ARE_PARALLEL)
 	{
-		
+		//UE_LOG(LogTemp, Warning, TEXT("Slerper Capsule Dot: %f"), (CapsuleUp | CapsuleSlerper->GetUpVector()));
 	}
 	else
 	{
@@ -1264,7 +1302,7 @@ void AALSBaseCharacter::UpdateGroundedRotation(float DeltaTime)
 				}
 				else if (GetLocalRole() == ROLE_SimulatedProxy)
 				{
-					UE_LOG(LogTemp, Log, TEXT("ROLE_SimulatedProxy: ReplicatedQuatYawRotation: %s"), *ReplicatedQuatYawRotation.ToString());
+					//UE_LOG(LogTemp, Log, TEXT("ROLE_SimulatedProxy: ReplicatedQuatYawRotation: %s"), *ReplicatedQuatYawRotation.ToString());
 					AddActorLocalRotation(DeltaQuatYaw);
 				}
 				else if (IsLocallyControlled())
@@ -1694,6 +1732,41 @@ void AALSBaseCharacter::GetControlForwardRightVector(FVector& Forward, FVector& 
 	const FRotator ControlRot(0.0f, AimingRotation.Yaw, 0.0f);
 	Forward = GetInputAxisValue("MoveForward/Backwards") * CapsuleSlerper->GetRightVector();
 	Right = GetInputAxisValue("MoveRight/Left") * CapsuleSlerper->GetForwardVector();
+}
+
+void AALSBaseCharacter::OnFire()
+{
+TArray<AActor*> IgnoreArray;
+	FCollisionQueryParams CollisionParams;
+	CollisionParams.AddIgnoredActor(this);
+	FHitResult HitResult;
+	FVector HitStart = FirstPersonCameraComponent->GetComponentLocation();
+	FVector HitEnd = HitStart + FirstPersonCameraComponent->GetForwardVector() * 9000.f;
+	GetWorld()->LineTraceSingleByChannel(HitResult, FirstPersonCameraComponent->GetComponentLocation(), HitEnd, ECC_Visibility, CollisionParams);
+	
+	UE_LOG(LogTemp, Log, TEXT("Onfire Called"));
+	if (HitResult.GetActor())
+	{
+		UE_LOG(LogTemp, Log, TEXT("Onfire hit object %s"), *HitResult.GetActor()->GetFName().ToString());
+		
+		DrawDebugLine(this->GetWorld(), HitStart, HitResult.Location, FColor::Green, false, .5f, 0, 4.f);
+		TArray<FHitResult> OutHits;
+
+		UKismetSystemLibrary::SphereTraceMulti(this, HitResult.Location, HitResult.Location, 600.f, UEngineTypes::ConvertToTraceType(ECC_Visibility), false, IgnoreArray, EDrawDebugTrace::None, OutHits, true);
+
+		for (auto& Hit : OutHits)
+		{	
+			
+			if (Hit.GetActor()->GetRootComponent()->IsA<UStaticMeshComponent>() && Hit.GetActor()->IsRootComponentMovable())
+			{
+				UStaticMeshComponent* MeshComp = Cast<UStaticMeshComponent>((Hit.GetActor())->GetRootComponent());
+				FVector AwayFromBlastDirection = UKismetMathLibrary::GetDirectionUnitVector(HitResult.Location, MeshComp->GetComponentLocation());
+				MeshComp->SetAllPhysicsLinearVelocity(MeshComp->GetComponentVelocity() + (AwayFromBlastDirection * 30.f));
+				MeshComp->AddRadialImpulse(HitResult.Location, 500.f, 1600.f, ERadialImpulseFalloff::RIF_Constant, true);
+				
+			}
+		}
+	}
 }
 
 FVector AALSBaseCharacter::GetPlayerMovementInput() const

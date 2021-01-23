@@ -369,6 +369,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ALS|Essential Information")
 	void GetControlForwardRightVector(FVector& Forward, FVector& Right) const;
 
+	/** Fighting and stuff **/
+
+	void OnFire();
+
 protected:
 	/** Ragdoll System */
 
@@ -622,6 +626,9 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Replicated, Category = "ALS|Essential Information")
 	FRotator ReplicatedControlRotation = FRotator::ZeroRotator;
+	
+	UPROPERTY(BlueprintReadOnly, Replicated, Category = "ALS|Essential Information")
+		FVector ReplicatedGravityDirection = FVector::ZeroVector;
 
 	UPROPERTY(BlueprintReadOnly, Replicated, Category = "ALS|Essential Information")
 		FRotator ReplicatedQuatYawRotation = FRotator::ZeroRotator;
