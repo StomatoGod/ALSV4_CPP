@@ -81,8 +81,9 @@ void AALSBaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 	PlayerInputComponent->BindAction("CameraAction", IE_Pressed, this, &AALSBaseCharacter::CameraPressedAction);
 	PlayerInputComponent->BindAction("CameraAction", IE_Released, this, &AALSBaseCharacter::CameraReleasedAction);
 	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &AALSBaseCharacter::OnFire);
+	PlayerInputComponent->BindAction("GravityTestAction", IE_Pressed, this, &AALSBaseCharacter::ZeroGravTest);
 	//test
-
+	
 }
 
 void AALSBaseCharacter::PostInitializeComponents()
@@ -179,13 +180,21 @@ void AALSBaseCharacter::BeginPlay()
 	LastVelocityRotation = TargetRotation;
 	LastVelocityDirection = GetActorForwardVector();
 	LastMovementInputRotation = TargetRotation;
-
+	/**
 	if (GetLocalRole() == ROLE_SimulatedProxy)
 	{
 		MainAnimInstance->SetRootMotionMode(ERootMotionMode::IgnoreRootMotion);
+		GetMesh()->SetCollisionObjectType(ECC_PhysicsBody);
+		GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Clavicle_r")), true, true);
+		GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Clavicle_l")), true, true);
+		GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Clavicle_r")), .1f, true, true);
+		GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Clavicle_l")), .1f, true, true);
+		GetMesh()->SetEnableGravity(false);
+		GetMesh()->AddForceToAllBodiesBelow(FVector (0.f,-980.f, 0.f),FName(TEXT("Clavicle_r")), true, true);
+
 	}
-
-
+	**/
 	CapsuleSlerper->SetWorldLocation(GetCapsuleComponent()->GetComponentLocation());
 	CapsuleSlerper->SetWorldRotation(GetCapsuleComponent()->GetComponentRotation().Quaternion());
 
@@ -193,6 +202,8 @@ void AALSBaseCharacter::BeginPlay()
 
 	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 
+	
+	
 }
 
 void AALSBaseCharacter::PreInitializeComponents()
@@ -217,12 +228,26 @@ void AALSBaseCharacter::SetAimYawRate(float NewAimYawRate)
 
 void AALSBaseCharacter::SetGravityDirection(FVector Direction)
 {
-	MyCharacterMovementComponent->SetGravityDirection(Direction);
+		MyCharacterMovementComponent->SetGravityDirection(Direction);
+		GravityDirection = Direction;
 }
 
 void AALSBaseCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	UE_LOG(LogClass, Warning, TEXT(" GravityDirection: %s"), *GravityDirection.ToString());
+	DrawDebugLine(this->GetWorld(), GetActorLocation(), GetActorLocation() + GravityDirection * -500.f, FColor::Green, false, .01f, 0, 10.f);
+
+	if (MovementState == EALSMovementState::Ragdoll)
+	{
+		GetMesh()->AddForceToAllBodiesBelow(GravityDirection * 980.f, FName(TEXT("Pelvis")), true, true);
+	}
+	//if (GetLocalRole() == ROLE_SimulatedProxy)
+	//{
+		//GetMesh()->AddForceToAllBodiesBelow(GravityDirection * 980.f, FName(TEXT("Clavicle_r")), true, true);
+		//GetMesh()->AddForceToAllBodiesBelow(GravityDirection * 980.f, FName(TEXT("Clavicle_l")), true, true);
+	//}
 
 	/**
 	if (!GetMyMovementComponent()->CurrentFloor.IsWalkableFloor())
@@ -317,10 +342,13 @@ void AALSBaseCharacter::Tick(float DeltaTime)
 	else
 	{
 		const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(CapsuleUp, CapsuleSlerper->GetForwardVector());
+		//LocalCorrectedRight = RotationMatrix.Rotator().Vector();
+		//DrawDebugLine(this->GetWorld(), HitStart, HitResult.Location, FColor::Green, false, .5f, 0, 4.f);
 		CapsuleSlerper->SetWorldRotation(FQuat::Slerp(CapsuleSlerper->GetComponentRotation().Quaternion(), RotationMatrix.Rotator().Quaternion(), RotationLerpRate * DeltaTime));
 		//CapsuleSlerper->MoveComponent(FVector::ZeroVector, RotationMatrix.Rotator(), false);
 	}
-
+	//const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(CapsuleUp, CapsuleSlerper->GetForwardVector());
+	//LocalCorrectedRight = RotationMatrix.ToQuat().GetRightVector();
 		
 	
 
@@ -330,8 +358,7 @@ void AALSBaseCharacter::Tick(float DeltaTime)
 	//if (!HasAuthority())
 	
 	
-	YawThisFrame = 0.f;
-	PitchThisFrame = 0.f;
+	
 }
 
 void AALSBaseCharacter::RagdollStart()
@@ -351,6 +378,7 @@ void AALSBaseCharacter::RagdollStart()
 	// Step 1: Clear the Character Movement Mode and set the Movement State to Ragdoll
 	GetCharacterMovement()->SetMovementMode(MOVE_None);
 	SetMovementState(EALSMovementState::Ragdoll);
+	
 
 	// Step 2: Disable capsule collision and enable mesh physics simulation starting from the pelvis.
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -358,10 +386,12 @@ void AALSBaseCharacter::RagdollStart()
 	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Pelvis")), true, true);
 
+	GetMesh()->SetEnableGravity(false);
 	// Step 3: Stop any active montages.
 	MainAnimInstance->Montage_Stop(0.2f);
 
 	SetReplicateMovement(false);
+	
 }
 
 void AALSBaseCharacter::RagdollEnd()
@@ -1103,7 +1133,11 @@ void AALSBaseCharacter::SetEssentialValues(float DeltaTime)
 	}
 	if (IsLocallyControlled())
 	{
-		ReplicatedQuatYawRotation = CapsuleSlerper->GetComponentRotation();
+		const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(GetCapsuleComponent()->GetUpVector(), CapsuleSlerper->GetForwardVector());
+		//LocalCorrectedRight = RotationMatrix.ToQuat().GetRightVector();
+
+		//ReplicatedQuatYawRotation = CapsuleSlerper->GetComponentRotation();
+		ReplicatedQuatYawRotation = RotationMatrix.Rotator();
 		CameraRotation = FirstPersonCameraComponent->GetComponentRotation();
 	}
 
@@ -1337,12 +1371,12 @@ void AALSBaseCharacter::UpdateInAirRotation(float DeltaTime)
 	if (RotationMode == EALSRotationMode::VelocityDirection || RotationMode == EALSRotationMode::LookingDirection)
 	{
 		// Velocity / Looking Direction Rotation
-		SmoothCharacterRotation({0.0f, InAirRotation.Yaw, 0.0f}, 0.0f, 5.0f, DeltaTime);
+		//SmoothCharacterRotation({0.0f, InAirRotation.Yaw, 0.0f}, 0.0f, 5.0f, DeltaTime);
 	}
 	else if (RotationMode == EALSRotationMode::Aiming)
 	{
 		// Aiming Rotation
-		SmoothCharacterRotation({0.0f, AimingRotation.Yaw, 0.0f}, 0.0f, 15.0f, DeltaTime);
+		//SmoothCharacterRotation({0.0f, AimingRotation.Yaw, 0.0f}, 0.0f, 15.0f, DeltaTime);
 		InAirRotation = GetActorRotation();
 	}
 }
@@ -1779,13 +1813,17 @@ FVector AALSBaseCharacter::GetPlayerMovementInput() const
 
 void AALSBaseCharacter::PlayerForwardMovementInput(float Value)
 {
-	if (MovementState == EALSMovementState::Grounded || MovementState == EALSMovementState::InAir)
+	if (MovementState == EALSMovementState::Grounded)
 	{
 		// Default camera relative movement behavior
 		//const float Scale = UALSMathLibrary::FixDiagonalGamepadValues(Value, GetInputAxisValue("MoveRight/Left")).Key;
 		//const FRotator DirRotator(0.0f, AimingRotation.Yaw, 0.0f);
 		//AddMovementInput(UKismetMathLibrary::GetForwardVector(DirRotator), Scale);
 		AddMovementInput(CapsuleSlerper->GetForwardVector(), Value);
+	}
+	if (MovementState == EALSMovementState::InAir)
+	{
+		AddMovementInput(FirstPersonCameraComponent->GetForwardVector(), Value);
 	}
 }
 
@@ -1799,6 +1837,7 @@ void AALSBaseCharacter::PlayerRightMovementInput(float Value)
 		//const FRotator DirRotator(0.0f, AimingRotation.Yaw, 0.0f);
 		//AddMovementInput(UKismetMathLibrary::GetRightVector(DirRotator), Scale);
 		AddMovementInput(CapsuleSlerper->GetRightVector(), Value);
+		//AddMovementInput(GetActorRightVector(), Value);
 	}
 }
 
@@ -1860,6 +1899,22 @@ void AALSBaseCharacter::JumpReleasedAction()
 void AALSBaseCharacter::SprintPressedAction()
 {
 	SetDesiredGait(EALSGait::Sprinting);
+
+	GetMesh()->SetCollisionObjectType(ECC_PhysicsBody);
+	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+
+	/**
+	GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Upperarm_l")), true, true);
+	GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Upperarm_r")), true, true);
+	GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Upperarm_l")), .3f, true, true);
+	GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Upperarm_r")), .3f, true, true);
+	**/
+	GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Clavicle_r")), true, true);
+	GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Clavicle_l")), true, true);
+	GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Clavicle_r")), .3f, true, true);
+	GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Clavicle_l")), .3f, true, true);
+	GetMesh()->SetEnableGravity(false);
+	
 }
 
 void AALSBaseCharacter::SprintReleasedAction()
@@ -2058,6 +2113,44 @@ void AALSBaseCharacter::OnRep_ViewMode(EALSViewMode PrevViewMode)
 void AALSBaseCharacter::OnRep_OverlayState(EALSOverlayState PrevOverlayState)
 {
 	OnOverlayStateChanged(PrevOverlayState);
+}
+
+void AALSBaseCharacter::ZeroGravTest()
+{
+	
+	GetMyMovementComponent()->ForceZeroG = true;
+	GetCharacterMovement()->SetMovementMode(MOVE_Flying);
+	SetMovementState(EALSMovementState::InAir);
+
+	
+
+	
+	//GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	GetMesh()->SetCollisionObjectType(ECC_PhysicsBody);
+	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	
+	GetMesh()->SetEnableGravity(false);
+	
+	GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Thigh_l")), true, true);
+	GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Thigh_r")), true, true);
+	GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Thigh_l")), .4f, true, true);
+	GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Thigh_r")), .4f, true, true);
+	//Clavicle
+	/**
+	GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Upperarm_l")), true, true);
+	GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Upperarm_r")), true, true);
+	GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Upperarm_l")), .2f, true, true);
+	GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Upperarm_r")), .2f, true, true);
+	**/
+	GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Clavicle_r")), true, true);
+	GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Clavicle_l")), true, true);
+	GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Clavicle_r")), .2f, true, true);
+	GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Clavicle_l")), .2f, true, true);
+	
+
+	
+	// Step 3: Stop any active montages.
+	//MainAnimInstance->Montage_Stop(0.2f);
 }
 
 void AALSBaseCharacter::UpdateDeltaPitch()

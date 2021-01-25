@@ -43,7 +43,7 @@ void UALSCharacterAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	
 	UpdateAimingValues(DeltaSeconds);
 	UpdateLayerValues();
-	//UpdateFootIK(DeltaSeconds);
+	UpdateFootIK(DeltaSeconds);
 
 	if (MovementState.Grounded())
 	{

@@ -51,7 +51,8 @@ enum class EALSMovementState : uint8
 	Grounded,
 	InAir,
 	Mantling,
-	Ragdoll
+	Ragdoll, 
+	Floating
 };
 
 UENUM(BlueprintType)

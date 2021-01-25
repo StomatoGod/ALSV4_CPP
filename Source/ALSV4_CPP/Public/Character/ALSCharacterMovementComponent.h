@@ -61,6 +61,7 @@ public:
 	UFUNCTION(Reliable, Server)
 	void Server_SetMaxWalkingSpeed(float NewMaxWalkSpeed);
 
+	bool ForceZeroG = false;
 
 
 	//GRAVITY OVERRIDES::
@@ -97,7 +98,11 @@ public:
 	virtual bool IsWalkable(const FHitResult& Hit) const override;
 	virtual void ComputeFloorDist(const FVector& CapsuleLocation, float LineDistance, float SweepDistance, FFindFloorResult& OutFloorResult, float SweepRadius, const FHitResult* DownwardSweepResult = NULL) const override;
 	virtual bool IsWithinEdgeTolerance(const FVector& CapsuleLocation, const FVector& TestImpactPoint, const float CapsuleRadius) const override;
-
+	//Austin
+	virtual bool ShouldRemainVertical() const override;
+	UPROPERTY(Category = "Character Movement: Walking", EditAnywhere, meta = (ClampMin = "0.0", ClampMax = "90.0", UIMin = "0.0", UIMax = "90.0"))
+		float WalkableFloorAngleOverride;
+	//virtual void PhysicsRotation(float DeltaTime) override;
 	
 	// End UCharacterMovementComponent overrides
 
@@ -149,7 +154,8 @@ protected:
 	FVector GetGravity() const;
 	FVector GetComponentDesiredAxisZ() const;
 
-	void UpdateComponentRotation() override;
+	void UpdateComponentRotation();
+	void UpdateComponentRotationSmooth(float Delta);
 	FQuat GetCapsuleRotation() const;
 	FVector GetCapsuleAxisX() const;
 	FVector GetCapsuleAxisZ() const;
@@ -158,6 +164,7 @@ protected:
 	bool bFallingRemovesSpeedZ;
 	bool bIgnoreBaseRollMove;
 
+	FRotator DesiredStandingRotation;
 
 
 	UPROPERTY()

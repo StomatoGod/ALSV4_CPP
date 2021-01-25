@@ -41,8 +41,8 @@ class ALSV4_CPP_API AALSBaseCharacter : public ACharacter
 public:
 	AALSBaseCharacter(const FObjectInitializer& ObjectInitializer);
 
-	float PitchThisFrame; 
-	float YawThisFrame;
+	
+	
 
 	//!!!!!!!!!!!!!!!!!111
 	UPROPERTY(BlueprintReadOnly, Replicated, Category = "CameraSystem")
@@ -57,6 +57,8 @@ public:
 	}
 
 	void SetGravityDirection(FVector Direction);
+
+	FVector GravityDirection;
 
 	virtual void Tick(float DeltaTime) override;
 
@@ -499,6 +501,7 @@ protected:
 	UFUNCTION()
 	void OnRep_OverlayState(EALSOverlayState PrevOverlayState);
 
+
 protected:
 	/* Custom movement component*/
 	UPROPERTY()
@@ -632,6 +635,12 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Replicated, Category = "ALS|Essential Information")
 		FRotator ReplicatedQuatYawRotation = FRotator::ZeroRotator;
+
+		FVector LocalCorrectedRight; 
+		FVector LocalCorrectedForward;
+
+		void ZeroGravTest();
+		
 
 	/** State Values */
 
