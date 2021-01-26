@@ -387,6 +387,7 @@ void UALSCharacterAnimInstance::SetFootLockOffsets(float DeltaSeconds, FVector& 
 	LocalRot = Delta;
 }
 
+/**
 void UALSCharacterAnimInstance::SetPelvisIKOffset(float DeltaSeconds, FVector FootOffsetLTarget,
 	FVector FootOffsetRTarget)
 {
@@ -410,11 +411,40 @@ void UALSCharacterAnimInstance::SetPelvisIKOffset(float DeltaSeconds, FVector Fo
 		FootIKValues.PelvisOffset = FVector::ZeroVector;
 	}
 
+	UE_LOG(LogTemp, Warning, TEXT("FootOffsetLTarget : %s"), *FootOffsetLTarget.ToString());
+	UE_LOG(LogTemp, Warning, TEXT("FootOffsetRTarget : %s"), *FootOffsetRTarget.ToString());
+}
+**/
+
+void UALSCharacterAnimInstance::SetPelvisIKOffset(float DeltaSeconds, FVector FootOffsetLTarget,
+	FVector FootOffsetRTarget)
+{
+	// Calculate the Pelvis Alpha by finding the average Foot IK weight. If the alpha is 0, clear the offset.
+	FootIKValues.PelvisAlpha =
+		(GetCurveValue(FName(TEXT("Enable_FootIK_L"))) + GetCurveValue(FName(TEXT("Enable_FootIK_R")))) / 2.0f;
+
+	if (FootIKValues.PelvisAlpha > 0.0f)
+	{
+		// Step 1: Set the new Pelvis Target to be the lowest Foot Offset
+		const FVector PelvisTarget = FootOffsetLTarget.Size() < FootOffsetRTarget.Size() ? FootOffsetRTarget : FootOffsetLTarget;
+
+		// Step 2: Interp the Current Pelvis Offset to the new target value.
+		//Interpolate at different speeds based on whether the new target is above or below the current one.
+		//const float InterpSpeed = PelvisTarget.Z > FootIKValues.PelvisOffset.Z ? 10.0f : 15.0f;
+		FootIKValues.PelvisOffset =
+			FMath::VInterpTo(FootIKValues.PelvisOffset, PelvisTarget, DeltaSeconds, 15.f);
+	}
+	else
+	{
+		FootIKValues.PelvisOffset = FVector::ZeroVector;
+	}
+
 	//UE_LOG(LogTemp, Warning, TEXT("FootOffsetLTarget.Size(): %f"), FootOffsetLTarget.Size());
 	//UE_LOG(LogTemp, Warning, TEXT("FootOffsetLTarget.Size(): %f"), FootOffsetLTarget.Size());
 	//UE_LOG(LogTemp, Warning, TEXT("FootIKValues.PelvisAlpha : %f"), FootIKValues.PelvisAlpha);
 	//UE_LOG(LogTemp, Warning, TEXT("FootIKValues.PelvisOffset : %s"), *FootIKValues.PelvisOffset.ToString());
 }
+
 
 void UALSCharacterAnimInstance::ResetIKOffsets(float DeltaSeconds)
 {
@@ -492,6 +522,7 @@ void UALSCharacterAnimInstance::SetFootOffsets(float DeltaSeconds, FName EnableF
 }
 **/
 
+
 void UALSCharacterAnimInstance::SetFootOffsets(float DeltaSeconds, FName EnableFootIKCurve, FName IKFootBone,
 	FName RootBone, FVector& CurLocationTarget, FVector& CurLocationOffset,
 	FRotator& CurRotationOffset, bool LeftFoot)
@@ -511,182 +542,54 @@ void UALSCharacterAnimInstance::SetFootOffsets(float DeltaSeconds, FName EnableF
 	FVector IKFootFloorLoc = OwnerComp->GetSocketLocation(IKFootBone);
 	
 	float FloorDistance = FMath::Abs((IKFootFloorLoc - OwnerComp->GetSocketLocation(RootBone)).Size());
-	//IKFootFloorLoc -= TraceDirection * FloorDistance;
-	//IKFootFloorLoc.Z = OwnerComp->GetSocketLocation(RootBone).Z;
-
+	float RootfootDot = TraceDirection | UKismetMathLibrary::GetDirectionUnitVector(OwnerComp->GetSocketLocation(RootBone), IKFootFloorLoc);
+	IKFootFloorLoc -= TraceDirection * FloorDistance * RootfootDot;
 	UWorld* World = GetWorld();
 	check(World);
-
 	FCollisionQueryParams Params;
 	Params.AddIgnoredActor(Character);
-
-	
 	FHitResult HitResult;
 	FVector TraceStart = IKFootFloorLoc + (TraceDirection * Config.IK_TraceDistanceAboveFoot);
 	FVector TraceEnd = IKFootFloorLoc - (TraceDirection * Config.IK_TraceDistanceAboveFoot);
-	float TotalTraceLength = FMath::Abs((TraceStart - TraceEnd).Size());
 	World->LineTraceSingleByChannel(HitResult,
 		IKFootFloorLoc + (TraceDirection * Config.IK_TraceDistanceAboveFoot),
 		IKFootFloorLoc - (TraceDirection * Config.IK_TraceDistanceAboveFoot),
 		ECC_Visibility, Params);
-//DrawDebugLine(this->GetWorld(), IKFootFloorLoc + (TraceDirection * Config.IK_TraceDistanceAboveFoot), IKFootFloorLoc - (TraceDirection * Config.IK_TraceDistanceAboveFoot), FColor::Green, false, .01f, 0, 6.f);
-	
+
 	FRotator TargetRotOffset = FRotator::ZeroRotator;
 	if (Character->GetCharacterMovement()->IsWalkable(HitResult))
 	{
 		FVector ImpactPoint = HitResult.ImpactPoint;
 		FVector ImpactNormal = HitResult.ImpactNormal;
-		float ImpactDistanceFromTraceStart = FMath::Abs((TraceStart - ImpactPoint).Size());
-		float FootDistanceFromTraceStart = FMath::Abs((TraceStart - IKFootFloorLoc).Size());
-		float ImpactFootLocationDifference = FMath::Abs((ImpactPoint - IKFootFloorLoc).Size());
-		// Step 1.1: Find the difference in location from the Impact point and the expected (flat) floor location.
-		// These values are offset by the nomrmal multiplied by the
-		// foot height to get better behavior on angled surfaces.
-		//CurLocationTarget = (ImpactPoint + ImpactNormal * Config.FootHeight) -
-			//(IKFootFloorLoc + FVector(0, 0, Config.FootHeight));
-
-		//CurLocationTarget = (ImpactPoint) - (IKFootFloorLoc);
-		//CurLocationTarget = (ImpactPoint + ImpactNormal * Config.FootHeight) - (IKFootFloorLoc + FVector(0, 0, Config.FootHeight));
-		CurLocationTarget = (ImpactPoint + ImpactNormal * 6.f) - (IKFootFloorLoc + (6.f * (TraceDirection * -1.f)));
-		//CurLocationTarget = ImpactPoint;
-		//UE_LOG(LogTemp, Warning, TEXT("TraceDirection: %s"), *TraceDirection.ToString());
-
-		DrawDebugSphere
-		(
-			this->GetWorld(),
-			ImpactPoint + ImpactNormal,
-			5.f,
-			5,
-			FColor::Yellow,
-			false,
-			.01f,
-			0,
-			5.f
-		);
-		DrawDebugSphere
-		(
-			this->GetWorld(),
-			ImpactPoint,
-			5.f,
-			5,
-			FColor::Red,
-			false,
-			.01f,
-			0,
-			5.f
-		);
-
-		//CurLocationTarget = ImpactPoint;
-		//UE_LOG(LogTemp, Warning, TEXT("IK Hit ImpactPoint: %s"), *HitResult.ImpactPoint.ToString());
-		//UE_LOG(LogTemp, Warning, TEXT("IK Current Location Target: %s"), *CurLocationTarget.ToString());
-		//UE_LOG(LogTemp, Warning, TEXT("IK Config.FootHeight: %f"), Config.FootHeight);
-		//UE_LOG(LogTemp, Warning, TEXT("TotalTraceLength: %f"), TotalTraceLength);
-		//UE_LOG(LogTemp, Warning, TEXT("SubtractedTraceLength: %f"), LostTraceLength);
-		//UE_LOG(LogTemp, Warning, TEXT("FootDistanceFromTraceStart: %f"), FootDistanceFromTraceStart);
-		//UE_LOG(LogTemp, Warning, TEXT("ImpactDistanceFromTraceStart: %f"), ImpactDistanceFromTraceStart);
+		float ImpactPointFloorDistance = FMath::Abs((IKFootFloorLoc - ImpactPoint).Size());
+		//IKFootFloorLoc -= TraceDirection * ImpactPointFloorDistance;
+		CurLocationTarget = (ImpactPoint + ImpactNormal * Config.FootHeight) - (IKFootFloorLoc + (TraceDirection * Config.FootHeight));
+		//CurLocationTarget += TraceDirection * ImpactPointFloorDistance;
+		
 		// Step 1.2: Calculate the Rotation offset by getting the Atan2 of the Impact Normal.
-		FQuat CharacterQuat = Character->GetActorQuat();
-		FQuat ZeroQuat = FVector::ZeroVector.Rotation().Quaternion();
-		FVector CharacterUp = Character->GetActorUpVector() * -1.f;
-		FVector TestVector = ImpactNormal;
-		FQuat UnrotateDelta; 
-		bool UnrotateAgain = false;
 		if ((TraceDirection | FVector(0.f,0.f,1.f)) < THRESH_NORMALS_ARE_PARALLEL)
 		{	
-
+		
+			float Dot = TraceDirection | FVector(0.f, 0.f, 1.f);
+			float DotAcos = FMath::Acos(Dot);
+			float DotAngle = DotAcos * 57.2958;
+			ImpactNormal = ImpactNormal.RotateAngleAxis(DotAngle * -1.f, FVector(1.f,0.f,0.f));
 		}
-		FVector RightTest = UKismetMathLibrary::GetRightVector(CharacterUp.Rotation());
-		//float DeltaQuatDot = FVector::DotProduct(CharacterUp, ImpactNormal);
-		//float DeltaQuatAcos = FMath::Acos(DeltaQuatDot);
-		//float DeltaQuatYaw = DeltaQuatAcos * 57.2958;
-
-
-
-		FQuat ImpactNormalDeltaUnrotate = ImpactNormal.Rotation().Quaternion() * CharacterUp.Rotation().Quaternion().Inverse();;
-		//FVector UnrotatedImpactNormal = UKismetMathLibrary::GetForwardVector((ImpactNormal.Rotation().Quaternion() * ZeroQuat.Inverse()).Rotator());
-		
-		
-		//ImpactNormal =
-		FVector TestVectorLinePenis = (TraceDirection).ToOrientationQuat().Vector();
-			//DrawDebugLine(this->GetWorld(), IKFootFloorLoc, IKFootFloorLoc + (TestVectorLinePenis * 100.f), FColor::Blue, false, .05f, 0, 6.f);
-			//DrawDebugLine(this->GetWorld(), IKFootFloorLoc, IKFootFloorLoc + (ImpactNormal * 100.f), FColor::Red, false, .05f, 0, 6.f);
+		else if ((TraceDirection | FVector(0.f, 0.f, 1.f)) < 0.f)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Dot is negative"));
+		}
 		TargetRotOffset.Pitch = -FMath::RadiansToDegrees(FMath::Atan2(ImpactNormal.X, ImpactNormal.Z));
 		TargetRotOffset.Roll = FMath::RadiansToDegrees(FMath::Atan2(ImpactNormal.Y, ImpactNormal.Z));
-		if (UnrotateAgain)
-		{
-			//UnrotateDelta.Inverse().UnrotateVector(TargetRotOffset);
-			//TargetRotOffset = (TargetRotOffset.Quaternion() * FVector(0.f, 0.f, 1.f).ToOrientationQuat()).Rotator();
-		}
-
-		//FVector TargetRotUp = UKismetMathLibrary::GetUpVector(TargetRotOffset);
-		
-		
-		//UE_LOG(LogTemp, Warning, TEXT("TargetRotOffset: %s"), *TargetRotOffset.ToString());
-		FVector FootForward;
-		FRotator BoneRotation;
-		FQuat BoneQuat;
-		if (LeftFoot == true)
-		{
-			//BoneRotation = OwnerComp->GetSocketRotation(FName(TEXT("foot_l")));
-			//FootForward = UKismetMathLibrary::GetUpVector(BoneRotation);
-			BoneQuat = OwnerComp->GetBoneQuaternion(FName(TEXT("foot_r")));
-		}
-		else
-		{
-			//BoneRotation = OwnerComp->GetSocketRotation(FName(TEXT("foot_r")));
-			//FootForward = UKismetMathLibrary::GetUpVector(BoneRotation);
-			//OwnerComp->TransformFromBoneSpace(FName(TEXT("foot_r")), )
-			BoneQuat = OwnerComp->GetBoneQuaternion(FName(TEXT("foot_r")));
-		}
-		//UE_LOG(LogTemp, Warning, TEXT("BoneQuat Rotator: %s"), *BoneQuat.Rotator().ToString());
-		
-		FVector BoneQuatUp = UKismetMathLibrary::GetForwardVector(BoneQuat.Rotator()) * -1.f;
-		FVector BoneQuatForward = UKismetMathLibrary::GetRightVector(BoneQuat.Rotator()) * -1.f;
-
-		//DrawDebugLine(this->GetWorld(), IKFootFloorLoc, IKFootFloorLoc + (BoneQuatUp * 100.f), FColor::Red, false, .05f, 0, 6.f);
-		//FVector FootForward = UKismetMathLibrary::GetUpVector(OwnerComp->GetSocketRotation(IKFootBone));
-		//FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(ImpactNormal, FootForward);
-		//FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(FVector(0.f,0.f,1.f), ImpactNormal);
-		FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(ImpactNormal, FVector(0.f, 0.f, 1.f));
-		FVector MatrixForward = UKismetMathLibrary::GetForwardVector(RotationMatrix.Rotator());
-		DrawDebugLine(this->GetWorld(), IKFootFloorLoc, IKFootFloorLoc + (ImpactNormal * 100.f), FColor::Blue, false, .05f, 0, 6.f);
-		DrawDebugLine(this->GetWorld(), IKFootFloorLoc, IKFootFloorLoc + (MatrixForward * 100.f), FColor::Red, false, .05f, 0, 6.f);
-		TargetRotOffset = RotationMatrix.Rotator();
-
-		FQuat Delta = RotationMatrix.Rotator().Quaternion() * BoneRotation.Quaternion().Inverse();
-
-		FRotator NormalRotation = ImpactNormal.Rotation();
-		FVector NormalRotationVector = UKismetMathLibrary::GetForwardVector(NormalRotation);
-		
-		//TargetRotOffset = DeltaNormal.Rotator();
-		//TargetRotOffset = (Character->GetActorRotation().Quaternion() * RotationMatrix.Rotator().Quaternion().Inverse()).Rotator();
-		//TargetRotOffset = (CurRotationOffset.Quaternion() * TargetRotOffset.Quaternion()).Rotator();
-		if ((ImpactNormal | TraceDirection) < THRESH_NORMALS_ARE_PARALLEL)
-		{
-			//TargetRotOffset = (NormalRotation.Quaternion() * TraceDirection.Rotation().Quaternion().Inverse()).Rotator();
-
-			
-		}
-
-		//TargetRotOffset = (RotationMatrix.Rotator().Quaternion() * BoneQuat.Inverse()).Rotator();
-		//TargetRotOffset.Roll = 50.f;
-		
 	}
-	
-
-	
-	
 	// Step 2: Interp the Current Location Offset to the new target value.
 	// Interpolate at different speeds based on whether the new target is above or below the current one.
 	//const float InterpSpeed = CurLocationOffset.Z > CurLocationTarget.Z ? 30.f : 15.0f;
 	CurLocationOffset = FMath::VInterpTo(CurLocationOffset, CurLocationTarget, DeltaSeconds, 15.f);
-	
 
 	// Step 3: Interp the Current Rotation Offset to the new target value.
-	//CurRotationOffset = FMath::RInterpTo(CurRotationOffset, TargetRotOffset, DeltaSeconds, 30.0f);
-	//CurRotationOffset = FMath::RInterpTo(CurRotationOffset, Character->GetActorRotation(), DeltaSeconds, 30.0f);
-	//CurRotationOffset = TargetRotOffset;
-	//UE_LOG(LogTemp, Warning, TEXT("CurRotationOffset: %s"), *CurRotationOffset.ToString());
+	CurRotationOffset = FMath::RInterpTo(CurRotationOffset, TargetRotOffset, DeltaSeconds, 30.0f);
+
 }
 
 
