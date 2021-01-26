@@ -56,6 +56,7 @@ public:
 		return MyCharacterMovementComponent;
 	}
 
+	
 	void SetGravityDirection(FVector Direction);
 
 	FVector GravityDirection;

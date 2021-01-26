@@ -96,6 +96,7 @@ public:
 		return CharacterInformation;
 	}
 
+	FVector TraceDirection;
 private:
 	void PlayDynamicTransitionDelay();
 
@@ -136,7 +137,7 @@ private:
 	void ResetIKOffsets(float DeltaSeconds);
 
 	void SetFootOffsets(float DeltaSeconds, FName EnableFootIKCurve, FName IKFootBone, FName RootBone,
-		FVector& CurLocationTarget, FVector& CurLocationOffset, FRotator& CurRotationOffset);
+		FVector& CurLocationTarget, FVector& CurLocationOffset, FRotator& CurRotationOffset, bool LeftFoot);
 
 	/** Grounded */
 

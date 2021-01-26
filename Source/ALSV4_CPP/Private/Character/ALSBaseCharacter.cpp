@@ -236,8 +236,8 @@ void AALSBaseCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	UE_LOG(LogClass, Warning, TEXT(" GravityDirection: %s"), *GravityDirection.ToString());
-	DrawDebugLine(this->GetWorld(), GetActorLocation(), GetActorLocation() + GravityDirection * -500.f, FColor::Green, false, .01f, 0, 10.f);
+	//UE_LOG(LogClass, Warning, TEXT(" GravityDirection: %s"), *GravityDirection.ToString());
+	//DrawDebugLine(this->GetWorld(), GetActorLocation(), GetActorLocation() + GravityDirection * -500.f, FColor::Green, false, .01f, 0, 10.f);
 
 	if (MovementState == EALSMovementState::Ragdoll)
 	{
@@ -1913,7 +1913,9 @@ void AALSBaseCharacter::SprintPressedAction()
 	GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Clavicle_l")), true, true);
 	GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Clavicle_r")), .3f, true, true);
 	GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Clavicle_l")), .3f, true, true);
-	GetMesh()->SetEnableGravity(false);
+	//GetMesh()->SetEnableGravity(false);
+
+
 	
 }
 
