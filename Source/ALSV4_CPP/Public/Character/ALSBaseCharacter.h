@@ -18,6 +18,7 @@
 
 #include "ALSBaseCharacter.generated.h"
 
+class AGun;
 class UTimelineComponent;
 class UAnimInstance;
 class UAnimMontage;
@@ -38,10 +39,18 @@ class ALSV4_CPP_API AALSBaseCharacter : public ACharacter
 	UPROPERTY(VisibleAnywhere)
 		class UStaticMeshComponent* CapsuleSlerper;
 
+	/** get max health */
+	int32 GetMaxHealth() const;
+
 public:
 	AALSBaseCharacter(const FObjectInitializer& ObjectInitializer);
 
-	
+
+	AGun* GetGun();
+
+	AGun* CurrentGun;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Replicated, Category = Health)
+		float Health;
 	
 
 	//!!!!!!!!!!!!!!!!!111

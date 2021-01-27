@@ -8,7 +8,7 @@
 
 #include "Character/ALSBaseCharacter.h"
 
-
+#include "Character/Gun.h"
 #include "Character/ALSPlayerController.h"
 #include "Character/Animation/ALSCharacterAnimInstance.h"
 #include "Library/ALSMathLibrary.h"
@@ -44,6 +44,11 @@ AALSBaseCharacter::AALSBaseCharacter(const FObjectInitializer& ObjectInitializer
 	
 
 	bAlwaysRelevant = true;
+}
+
+AGun* AALSBaseCharacter::GetGun()
+{
+	return nullptr;
 }
 
 void AALSBaseCharacter::Restart()
@@ -89,6 +94,15 @@ void AALSBaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 void AALSBaseCharacter::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
+
+	if (GetLocalRole() == ROLE_Authority)
+	{
+		Health = GetMaxHealth();
+
+		// Needs to happen after character is added to repgraph
+		//GetWorldTimerManager().SetTimerForNextTick(this, &AALSBaseCharacter::SpawnDefaultInventory);
+	}
+
 	MyCharacterMovementComponent = Cast<UALSCharacterMovementComponent>(Super::GetMovementComponent());
 }
 
@@ -114,6 +128,12 @@ void AALSBaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	DOREPLIFETIME_CONDITION(AALSBaseCharacter, OverlayState, COND_SkipOwner);
 	DOREPLIFETIME_CONDITION(AALSBaseCharacter, ViewMode, COND_SkipOwner);
 }
+
+int32 AALSBaseCharacter::GetMaxHealth() const
+{
+	return GetClass()->GetDefaultObject<AALSBaseCharacter>()->Health;
+}
+
 
 void AALSBaseCharacter::OnBreakfall_Implementation()
 {
@@ -180,21 +200,24 @@ void AALSBaseCharacter::BeginPlay()
 	LastVelocityRotation = TargetRotation;
 	LastVelocityDirection = GetActorForwardVector();
 	LastMovementInputRotation = TargetRotation;
-	/**
+	
 	if (GetLocalRole() == ROLE_SimulatedProxy)
 	{
 		MainAnimInstance->SetRootMotionMode(ERootMotionMode::IgnoreRootMotion);
 		GetMesh()->SetCollisionObjectType(ECC_PhysicsBody);
 		GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		
 		GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Clavicle_r")), true, true);
 		GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Clavicle_l")), true, true);
 		GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Clavicle_r")), .1f, true, true);
 		GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Clavicle_l")), .1f, true, true);
-		GetMesh()->SetEnableGravity(false);
-		GetMesh()->AddForceToAllBodiesBelow(FVector (0.f,-980.f, 0.f),FName(TEXT("Clavicle_r")), true, true);
+		GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Hand_r")), 1.f, true, true);
+		GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Hand_l")), 1.f, true, true);
+		//GetMesh()->SetEnableGravity(false);
+		//GetMesh()->AddForceToAllBodiesBelow(FVector (0.f,-980.f, 0.f),FName(TEXT("Clavicle_r")), true, true);
 
 	}
-	**/
+	
 	CapsuleSlerper->SetWorldLocation(GetCapsuleComponent()->GetComponentLocation());
 	CapsuleSlerper->SetWorldRotation(GetCapsuleComponent()->GetComponentRotation().Quaternion());
 
