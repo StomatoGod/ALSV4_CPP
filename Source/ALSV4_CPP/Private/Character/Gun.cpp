@@ -6,17 +6,19 @@
 #include "Character/ALSPlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundCue.h"
+#include "Net/UnrealNetwork.h"
+#include "Components/AudioComponent.h"
 #include "Character/ALSBaseCharacter.h"
 
 
-//TODO: Create player state. Handle NotifyEquipWeapon, Handle canFire, Handle Can Reload,
+//TODO: Create player state. Handle NotifyEquipGun, Handle canFire, Handle Can Reload,
 //Handle GetHud and NotifyHud from playercontroller (Happens in HandleFire)
-//Handle Start and Stop weapon animation
+//Handle Start and Stop Gun animation
 // Handle GetAdjustedAim
-// Handle Play weapon sound
+// Handle Play Gun sound
 AGun::AGun(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
-	Mesh1P = ObjectInitializer.CreateDefaultSubobject<USkeletalMeshComponent>(this, TEXT("WeaponMesh1P"));
+	Mesh1P = ObjectInitializer.CreateDefaultSubobject<USkeletalMeshComponent>(this, TEXT("GunMesh1P"));
 	Mesh1P->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::OnlyTickPoseWhenRendered;
 	Mesh1P->bReceivesDecals = false;
 	Mesh1P->CastShadow = false;
@@ -25,7 +27,7 @@ AGun::AGun(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitialize
 	Mesh1P->SetCollisionResponseToAllChannels(ECR_Ignore);
 	RootComponent = Mesh1P;
 
-	Mesh3P = ObjectInitializer.CreateDefaultSubobject<USkeletalMeshComponent>(this, TEXT("WeaponMesh3P"));
+	Mesh3P = ObjectInitializer.CreateDefaultSubobject<USkeletalMeshComponent>(this, TEXT("GunMesh3P"));
 	Mesh3P->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::OnlyTickPoseWhenRendered;
 	Mesh3P->bReceivesDecals = false;
 	Mesh3P->CastShadow = true;
@@ -44,7 +46,7 @@ AGun::AGun(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitialize
 	bWantsToFire = false;
 	bPendingReload = false;
 	bPendingEquip = false;
-	CurrentState = EWeaponState::Idle;
+	CurrentState = EGunState::Idle;
 
 	CurrentAmmo = 0;
 	CurrentAmmoInClip = 0;
@@ -63,10 +65,10 @@ void AGun::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
 
-	if (WeaponConfig.InitialClips > 0)
+	if (GunConfig.InitialClips > 0)
 	{
-		CurrentAmmoInClip = WeaponConfig.AmmoPerClip;
-		CurrentAmmo = WeaponConfig.AmmoPerClip * WeaponConfig.InitialClips;
+		CurrentAmmoInClip = GunConfig.AmmoPerClip;
+		CurrentAmmo = GunConfig.AmmoPerClip * GunConfig.InitialClips;
 	}
 
 	DetachMeshFromPawn();
@@ -76,23 +78,23 @@ void AGun::Destroyed()
 {
 	Super::Destroyed();
 
-	StopSimulatingWeaponFire();
+	StopSimulatingGunFire();
 }
 
 //////////////////////////////////////////////////////////////////////////
 // Inventory
 
-void AGun::OnEquip(const AGun* LastWeapon)
+void AGun::OnEquip(const AGun* LastGun)
 {
 	AttachMeshToPawn();
 
 	bPendingEquip = true;
-	DetermineWeaponState();
+	DetermineGunState();
 
-	// Only play animation if last weapon is valid
-	if (LastWeapon)
+	// Only play animation if last Gun is valid
+	if (LastGun)
 	{
-		float Duration = PlayWeaponAnimation(EquipAnim);
+		float Duration = PlayGunAnimation(EquipAnim);
 		if (Duration <= 0.0f)
 		{
 			// failsafe
@@ -110,10 +112,10 @@ void AGun::OnEquip(const AGun* LastWeapon)
 
 	if (MyPawn && MyPawn->IsLocallyControlled())
 	{
-		PlayWeaponSound(EquipSound);
+		PlayGunSound(EquipSound);
 	}
 
-	//AALSBaseCharacter::NotifyEquipWeapon.Broadcast(MyPawn, this);
+	//AALSBaseCharacter::NotifyEquipGun.Broadcast(MyPawn, this);
 }
 
 void AGun::OnEquipFinished()
@@ -124,7 +126,7 @@ void AGun::OnEquipFinished()
 	bPendingEquip = false;
 
 	// Determine the state so that the can reload checks will work
-	DetermineWeaponState();
+	DetermineGunState();
 
 	if (MyPawn)
 	{
@@ -148,24 +150,24 @@ void AGun::OnUnEquip()
 
 	if (bPendingReload)
 	{
-		StopWeaponAnimation(ReloadAnim);
+		StopGunAnimation(ReloadAnim);
 		bPendingReload = false;
 
 		GetWorldTimerManager().ClearTimer(TimerHandle_StopReload);
-		GetWorldTimerManager().ClearTimer(TimerHandle_ReloadWeapon);
+		GetWorldTimerManager().ClearTimer(TimerHandle_ReloadGun);
 	}
 
 	if (bPendingEquip)
 	{
-		StopWeaponAnimation(EquipAnim);
+		StopGunAnimation(EquipAnim);
 		bPendingEquip = false;
 
 		GetWorldTimerManager().ClearTimer(TimerHandle_OnEquipFinished);
 	}
 
-	//AALSBaseCharacter::NotifyUnEquipWeapon.Broadcast(MyPawn, this);
+	//AALSBaseCharacter::NotifyUnEquipGun.Broadcast(MyPawn, this);
 
-	//DetermineWeaponState();
+	//DetermineGunState();
 }
 
 void AGun::OnEnterInventory(AALSBaseCharacter* NewOwner)
@@ -194,7 +196,7 @@ void AGun::AttachMeshToPawn()
 		// Remove and hide both first and third person meshes
 		DetachMeshFromPawn();
 
-		// For locally controller players we attach both weapons and let the bOnlyOwnerSee, bOwnerNoSee flags deal with visibility.
+		// For locally controller players we attach both Guns and let the bOnlyOwnerSee, bOwnerNoSee flags deal with visibility.
 		FName AttachPoint = MyPawn->GetGunAttachPoint();
 		if (MyPawn->IsLocallyControlled() == true)
 		{
@@ -207,10 +209,10 @@ void AGun::AttachMeshToPawn()
 		}
 		else
 		{
-			USkeletalMeshComponent* UseWeaponMesh = GetGunMesh();
+			USkeletalMeshComponent* UseGunMesh = GetGunMesh();
 			USkeletalMeshComponent* UsePawnMesh = MyPawn->GetPawnMesh();
-			UseWeaponMesh->AttachToComponent(UsePawnMesh, FAttachmentTransformRules::KeepRelativeTransform, AttachPoint);
-			UseWeaponMesh->SetHiddenInGame(false);
+			UseGunMesh->AttachToComponent(UsePawnMesh, FAttachmentTransformRules::KeepRelativeTransform, AttachPoint);
+			UseGunMesh->SetHiddenInGame(false);
 		}
 	}
 	**/
@@ -241,7 +243,7 @@ void AGun::StartFire()
 	if (!bWantsToFire)
 	{
 		bWantsToFire = true;
-		DetermineWeaponState();
+		DetermineGunState();
 	}
 }
 
@@ -255,7 +257,7 @@ void AGun::StopFire()
 	if (bWantsToFire)
 	{
 		bWantsToFire = false;
-		DetermineWeaponState();
+		DetermineGunState();
 	}
 }
 
@@ -269,34 +271,34 @@ void AGun::StartReload(bool bFromReplication)
 	if (bFromReplication || CanReload())
 	{
 		bPendingReload = true;
-		DetermineWeaponState();
+		DetermineGunState();
 
-		float AnimDuration = PlayWeaponAnimation(ReloadAnim);
+		float AnimDuration = PlayGunAnimation(ReloadAnim);
 		if (AnimDuration <= 0.0f)
 		{
-			AnimDuration = WeaponConfig.NoAnimReloadDuration;
+			AnimDuration = GunConfig.NoAnimReloadDuration;
 		}
 
 		GetWorldTimerManager().SetTimer(TimerHandle_StopReload, this, &AGun::StopReload, AnimDuration, false);
 		if (GetLocalRole() == ROLE_Authority)
 		{
-			GetWorldTimerManager().SetTimer(TimerHandle_ReloadWeapon, this, &AGun::ReloadWeapon, FMath::Max(0.1f, AnimDuration - 0.1f), false);
+			GetWorldTimerManager().SetTimer(TimerHandle_ReloadGun, this, &AGun::ReloadGun, FMath::Max(0.1f, AnimDuration - 0.1f), false);
 		}
 
 		if (MyPawn && MyPawn->IsLocallyControlled())
 		{
-			PlayWeaponSound(ReloadSound);
+			PlayGunSound(ReloadSound);
 		}
 	}
 }
 
 void AGun::StopReload()
 {
-	if (CurrentState == EWeaponState::Reloading)
+	if (CurrentState == EGunState::Reloading)
 	{
 		bPendingReload = false;
-		DetermineWeaponState();
-		StopWeaponAnimation(ReloadAnim);
+		DetermineGunState();
+		StopGunAnimation(ReloadAnim);
 	}
 }
 
@@ -350,9 +352,9 @@ void AGun::ClientStartReload_Implementation()
 
 bool AGun::CanFire() const
 {	
-	bool bCanFire = false;
-	//bool bCanFire = MyPawn && MyPawn->CanFire();
-	bool bStateOKToFire = ((CurrentState == EWeaponState::Idle) || (CurrentState == EWeaponState::Firing));
+	
+	bool bCanFire = MyPawn && MyPawn->CanFire();
+	bool bStateOKToFire = ((CurrentState == EGunState::Idle) || (CurrentState == EGunState::Firing));
 	return ((bCanFire == true) && (bStateOKToFire == true) && (bPendingReload == false));
 }
 
@@ -360,18 +362,18 @@ bool AGun::CanReload() const
 {
 	bool bCanReload = false;
 	//bool bCanReload = (!MyPawn || MyPawn->CanReload());
-	bool bGotAmmo = (CurrentAmmoInClip < WeaponConfig.AmmoPerClip) && (CurrentAmmo - CurrentAmmoInClip > 0 || HasInfiniteClip());
-	bool bStateOKToReload = ((CurrentState == EWeaponState::Idle) || (CurrentState == EWeaponState::Firing));
+	bool bGotAmmo = (CurrentAmmoInClip < GunConfig.AmmoPerClip) && (CurrentAmmo - CurrentAmmoInClip > 0 || HasInfiniteClip());
+	bool bStateOKToReload = ((CurrentState == EGunState::Idle) || (CurrentState == EGunState::Firing));
 	return ((bCanReload == true) && (bGotAmmo == true) && (bStateOKToReload == true));
 }
 
 
 //////////////////////////////////////////////////////////////////////////
-// Weapon usage
+// Gun usage
 
 void AGun::GiveAmmo(int AddAmount)
 {
-	const int32 MissingAmmo = FMath::Max(0, WeaponConfig.MaxAmmo - CurrentAmmo);
+	const int32 MissingAmmo = FMath::Max(0, GunConfig.MaxAmmo - CurrentAmmo);
 	AddAmount = FMath::Min(AddAmount, MissingAmmo);
 	CurrentAmmo += AddAmount;
 
@@ -427,9 +429,9 @@ void AGun::HandleReFiring()
 	// Update TimerIntervalAdjustment
 	UWorld* MyWorld = GetWorld();
 
-	float SlackTimeThisFrame = FMath::Max(0.0f, (MyWorld->TimeSeconds - LastFireTime) - WeaponConfig.TimeBetweenShots);
+	float SlackTimeThisFrame = FMath::Max(0.0f, (MyWorld->TimeSeconds - LastFireTime) - GunConfig.TimeBetweenShots);
 
-	if (bAllowAutomaticWeaponCatchup)
+	if (bAllowAutomaticGunCatchup)
 	{
 		TimerIntervalAdjustment -= SlackTimeThisFrame;
 	}
@@ -443,12 +445,12 @@ void AGun::HandleFiring()
 	{
 		if (GetNetMode() != NM_DedicatedServer)
 		{
-			SimulateWeaponFire();
+			SimulateGunFire();
 		}
 
 		if (MyPawn && MyPawn->IsLocallyControlled())
 		{
-			FireWeapon();
+			FireGun();
 
 			UseAmmo();
 
@@ -464,7 +466,7 @@ void AGun::HandleFiring()
 	{
 		if (GetCurrentAmmo() == 0 && !bRefiring)
 		{
-			PlayWeaponSound(OutOfAmmoSound);
+			PlayGunSound(OutOfAmmoSound);
 			//AALSPlayerController* MyPC = Cast<AALSPlayerController>(MyPawn->Controller);
 			//AShooterHUD* MyHUD = MyPC ? Cast<AShooterHUD>(MyPC->GetHUD()) : NULL;
 			//if (MyHUD)
@@ -473,7 +475,7 @@ void AGun::HandleFiring()
 			//}
 		}
 
-		// stop weapon fire FX, but stay in Firing state
+		// stop Gun fire FX, but stay in Firing state
 		if (BurstCounter > 0)
 		{
 			OnBurstFinished();
@@ -499,10 +501,10 @@ void AGun::HandleFiring()
 		}
 
 		// setup refire timer
-		bRefiring = (CurrentState == EWeaponState::Firing && WeaponConfig.TimeBetweenShots > 0.0f);
+		bRefiring = (CurrentState == EGunState::Firing && GunConfig.TimeBetweenShots > 0.0f);
 		if (bRefiring)
 		{
-			GetWorldTimerManager().SetTimer(TimerHandle_HandleFiring, this, &AGun::HandleReFiring, FMath::Max<float>(WeaponConfig.TimeBetweenShots + TimerIntervalAdjustment, SMALL_NUMBER), false);
+			GetWorldTimerManager().SetTimer(TimerHandle_HandleFiring, this, &AGun::HandleReFiring, FMath::Max<float>(GunConfig.TimeBetweenShots + TimerIntervalAdjustment, SMALL_NUMBER), false);
 			TimerIntervalAdjustment = 0.f;
 		}
 	}
@@ -531,13 +533,13 @@ void AGun::ServerHandleFiring_Implementation()
 	}
 }
 
-void AGun::ReloadWeapon()
+void AGun::ReloadGun()
 {
-	int32 ClipDelta = FMath::Min(WeaponConfig.AmmoPerClip - CurrentAmmoInClip, CurrentAmmo - CurrentAmmoInClip);
+	int32 ClipDelta = FMath::Min(GunConfig.AmmoPerClip - CurrentAmmoInClip, CurrentAmmo - CurrentAmmoInClip);
 
 	if (HasInfiniteClip())
 	{
-		ClipDelta = WeaponConfig.AmmoPerClip - CurrentAmmoInClip;
+		ClipDelta = GunConfig.AmmoPerClip - CurrentAmmoInClip;
 	}
 
 	if (ClipDelta > 0)
@@ -551,26 +553,26 @@ void AGun::ReloadWeapon()
 	}
 }
 
-void AGun::SetWeaponState(EWeaponState::Type NewState)
+void AGun::SetGunState(EGunState::Type NewState)
 {
-	const EWeaponState::Type PrevState = CurrentState;
+	const EGunState::Type PrevState = CurrentState;
 
-	if (PrevState == EWeaponState::Firing && NewState != EWeaponState::Firing)
+	if (PrevState == EGunState::Firing && NewState != EGunState::Firing)
 	{
 		OnBurstFinished();
 	}
 
 	CurrentState = NewState;
 
-	if (PrevState != EWeaponState::Firing && NewState == EWeaponState::Firing)
+	if (PrevState != EGunState::Firing && NewState == EGunState::Firing)
 	{
 		OnBurstStarted();
 	}
 }
 
-void AGun::DetermineWeaponState()
+void AGun::DetermineGunState()
 {
-	EWeaponState::Type NewState = EWeaponState::Idle;
+	EGunState::Type NewState = EGunState::Idle;
 
 	if (bIsEquipped)
 	{
@@ -582,30 +584,30 @@ void AGun::DetermineWeaponState()
 			}
 			else
 			{
-				NewState = EWeaponState::Reloading;
+				NewState = EGunState::Reloading;
 			}
 		}
 		else if ((bPendingReload == false) && (bWantsToFire == true) && (CanFire() == true))
 		{
-			NewState = EWeaponState::Firing;
+			NewState = EGunState::Firing;
 		}
 	}
 	else if (bPendingEquip)
 	{
-		NewState = EWeaponState::Equipping;
+		NewState = EGunState::Equipping;
 	}
 
-	SetWeaponState(NewState);
+	SetGunState(NewState);
 }
 
 void AGun::OnBurstStarted()
 {
 	// start firing, can be delayed to satisfy TimeBetweenShots
 	const float GameTime = GetWorld()->GetTimeSeconds();
-	if (LastFireTime > 0 && WeaponConfig.TimeBetweenShots > 0.0f &&
-		LastFireTime + WeaponConfig.TimeBetweenShots > GameTime)
+	if (LastFireTime > 0 && GunConfig.TimeBetweenShots > 0.0f &&
+		LastFireTime + GunConfig.TimeBetweenShots > GameTime)
 	{
-		GetWorldTimerManager().SetTimer(TimerHandle_HandleFiring, this, &AGun::HandleFiring, LastFireTime + WeaponConfig.TimeBetweenShots - GameTime, false);
+		GetWorldTimerManager().SetTimer(TimerHandle_HandleFiring, this, &AGun::HandleFiring, LastFireTime + GunConfig.TimeBetweenShots - GameTime, false);
 	}
 	else
 	{
@@ -621,7 +623,7 @@ void AGun::OnBurstFinished()
 	// stop firing FX locally, unless it's a dedicated server
 	//if (GetNetMode() != NM_DedicatedServer)
 	//{
-	StopSimulatingWeaponFire();
+	StopSimulatingGunFire();
 	//}
 
 	GetWorldTimerManager().ClearTimer(TimerHandle_HandleFiring);
@@ -633,9 +635,9 @@ void AGun::OnBurstFinished()
 
 
 //////////////////////////////////////////////////////////////////////////
-// Weapon usage helpers
+// Gun usage helpers
 
-UAudioComponent* AGun::PlayWeaponSound(USoundCue* Sound)
+UAudioComponent* AGun::PlayGunSound(USoundCue* Sound)
 {
 	UAudioComponent* AC = NULL;
 	if (Sound && MyPawn)
@@ -647,7 +649,7 @@ UAudioComponent* AGun::PlayWeaponSound(USoundCue* Sound)
 	return AC;
 }
 
-float AGun::PlayWeaponAnimation(const FWeaponAnim& Animation)
+float AGun::PlayGunAnimation(const FGunAnim& Animation)
 {
 	float Duration = 0.0f;
 	if (MyPawn)
@@ -662,7 +664,7 @@ float AGun::PlayWeaponAnimation(const FWeaponAnim& Animation)
 	return Duration;
 }
 
-void AGun::StopWeaponAnimation(const FWeaponAnim& Animation)
+void AGun::StopGunAnimation(const FGunAnim& Animation)
 {
 	if (MyPawn)
 	{
@@ -749,11 +751,11 @@ FVector AGun::GetMuzzleDirection() const
 	return UseMesh->GetSocketRotation(MuzzleAttachPoint).Vector();
 }
 
-FHitResult AGun::WeaponTrace(const FVector& StartTrace, const FVector& EndTrace) const
+FHitResult AGun::GunTrace(const FVector& StartTrace, const FVector& EndTrace) const
 {
 
 	// Perform trace to retrieve hit info
-	FCollisionQueryParams TraceParams(SCENE_QUERY_STAT(WeaponTrace), true, GetInstigator());
+	FCollisionQueryParams TraceParams(SCENE_QUERY_STAT(GunTrace), true, GetInstigator());
 	TraceParams.bReturnPhysicalMaterial = true;
 
 	FHitResult Hit(ForceInit);
@@ -792,11 +794,11 @@ void AGun::OnRep_BurstCounter()
 {
 	if (BurstCounter > 0)
 	{
-		SimulateWeaponFire();
+		SimulateGunFire();
 	}
 	else
 	{
-		StopSimulatingWeaponFire();
+		StopSimulatingGunFire();
 	}
 }
 
@@ -812,16 +814,16 @@ void AGun::OnRep_Reload()
 	}
 }
 
-void AGun::SimulateWeaponFire()
+void AGun::SimulateGunFire()
 {
-	if (GetLocalRole() == ROLE_Authority && CurrentState != EWeaponState::Firing)
+	if (GetLocalRole() == ROLE_Authority && CurrentState != EGunState::Firing)
 	{
 		return;
 	}
 
 	if (MuzzleFX)
 	{
-		USkeletalMeshComponent* UseWeaponMesh = GetGunMesh();
+		USkeletalMeshComponent* UseGunMesh = GetGunMesh();
 		if (!bLoopedMuzzleFX || MuzzlePSC == NULL)
 		{
 			// Split screen requires we create 2 effects. One that we see and one that the other player sees.
@@ -843,14 +845,14 @@ void AGun::SimulateWeaponFire()
 			}
 			else
 			{
-				MuzzlePSC = UGameplayStatics::SpawnEmitterAttached(MuzzleFX, UseWeaponMesh, MuzzleAttachPoint);
+				MuzzlePSC = UGameplayStatics::SpawnEmitterAttached(MuzzleFX, UseGunMesh, MuzzleAttachPoint);
 			}
 		}
 	}
 
 	if (!bLoopedFireAnim || !bPlayingFireAnim)
 	{
-		PlayWeaponAnimation(FireAnim);
+		PlayGunAnimation(FireAnim);
 		bPlayingFireAnim = true;
 	}
 
@@ -858,12 +860,12 @@ void AGun::SimulateWeaponFire()
 	{
 		if (FireAC == NULL)
 		{
-			FireAC = PlayWeaponSound(FireLoopSound);
+			FireAC = PlayGunSound(FireLoopSound);
 		}
 	}
 	else
 	{
-		PlayWeaponSound(FireSound);
+		PlayGunSound(FireSound);
 	}
 
 	/**
@@ -877,14 +879,14 @@ void AGun::SimulateWeaponFire()
 		if (FireForceFeedback != NULL && PC->IsVibrationEnabled())
 		{
 			FForceFeedbackParameters FFParams;
-			FFParams.Tag = "Weapon";
+			FFParams.Tag = "Gun";
 			PC->ClientPlayForceFeedback(FireForceFeedback, FFParams);
 		}
 	}
 	**/
 }
 
-void AGun::StopSimulatingWeaponFire()
+void AGun::StopSimulatingGunFire()
 {
 	if (bLoopedMuzzleFX)
 	{
@@ -902,7 +904,7 @@ void AGun::StopSimulatingWeaponFire()
 
 	if (bLoopedFireAnim && bPlayingFireAnim)
 	{
-		StopWeaponAnimation(FireAnim);
+		StopGunAnimation(FireAnim);
 		bPlayingFireAnim = false;
 	}
 
@@ -911,7 +913,7 @@ void AGun::StopSimulatingWeaponFire()
 		FireAC->FadeOut(0.1f, 0.0f);
 		FireAC = NULL;
 
-		PlayWeaponSound(FireFinishSound);
+		PlayGunSound(FireFinishSound);
 	}
 }
 
@@ -949,7 +951,7 @@ bool AGun::IsAttachedToPawn() const
 	return bIsEquipped || bPendingEquip;
 }
 
-EWeaponState::Type AGun::GetCurrentState() const
+EGunState::Type AGun::GetCurrentState() const
 {
 	return CurrentState;
 }
@@ -966,25 +968,25 @@ int32 AGun::GetCurrentAmmoInClip() const
 
 int32 AGun::GetAmmoPerClip() const
 {
-	return WeaponConfig.AmmoPerClip;
+	return GunConfig.AmmoPerClip;
 }
 
 int32 AGun::GetMaxAmmo() const
 {
-	return WeaponConfig.MaxAmmo;
+	return GunConfig.MaxAmmo;
 }
 
 bool AGun::HasInfiniteAmmo() const
 {
 	//const AALSPlayerController* MyPC = (MyPawn != NULL) ? Cast<const AALSPlayerController>(MyPawn->Controller) : NULL;
-	//return WeaponConfig.bInfiniteAmmo || (MyPC && MyPC->HasInfiniteAmmo());
+	//return GunConfig.bInfiniteAmmo || (MyPC && MyPC->HasInfiniteAmmo());
 	return false;
 }
 
 bool AGun::HasInfiniteClip() const
 {
 	//const AALSPlayerController* MyPC = (MyPawn != NULL) ? Cast<const AALSPlayerController>(MyPawn->Controller) : NULL;
-	//return WeaponConfig.bInfiniteClip || (MyPC && MyPC->HasInfiniteClip());
+	//return GunConfig.bInfiniteClip || (MyPC && MyPC->HasInfiniteClip());
 	return false;
 }
 

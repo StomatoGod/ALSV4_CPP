@@ -48,7 +48,16 @@ public:
 
 	AGun* GetGun();
 
+	UPROPERTY(Transient, ReplicatedUsing = OnRep_CurrentGun)
 	AGun* CurrentGun;
+
+	UFUNCTION()
+		void OnRep_CurrentGun(AGun* LastGun);
+
+	void SetCurrentGun(AGun* NewGun, AGun* LastGun = NULL);
+
+	bool CanFire();
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Replicated, Category = Health)
 		float Health;
 	

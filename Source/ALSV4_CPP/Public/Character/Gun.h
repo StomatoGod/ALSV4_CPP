@@ -14,7 +14,7 @@ class UParticleSystemComponent;
 class UForceFeedbackEffect;
 class USoundCue;
 
-namespace EWeaponState
+namespace EGunState
 {
 	enum Type
 	{
@@ -26,7 +26,7 @@ namespace EWeaponState
 }
 
 USTRUCT()
-struct FWeaponData
+struct FGunData
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -51,15 +51,15 @@ struct FWeaponData
 		int32 InitialClips;
 
 	/** time between two consecutive shots */
-	UPROPERTY(EditDefaultsOnly, Category = WeaponStat)
+	UPROPERTY(EditDefaultsOnly, Category = GunStat)
 		float TimeBetweenShots;
 
-	/** failsafe reload duration if weapon doesn't have any animation for it */
-	UPROPERTY(EditDefaultsOnly, Category = WeaponStat)
+	/** failsafe reload duration if Gun doesn't have any animation for it */
+	UPROPERTY(EditDefaultsOnly, Category = GunStat)
 		float NoAnimReloadDuration;
 
 	/** defaults */
-	FWeaponData()
+	FGunData()
 	{
 		bInfiniteAmmo = false;
 		bInfiniteClip = false;
@@ -72,7 +72,7 @@ struct FWeaponData
 };
 
 USTRUCT()
-struct FWeaponAnim
+struct FGunAnim
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -120,19 +120,19 @@ class AGun : public AActor
 	//////////////////////////////////////////////////////////////////////////
 	// Inventory
 
-	/** weapon is being equipped by owner pawn */
-	virtual void OnEquip(const AGun* LastWeapon);
+	/** Gun is being equipped by owner pawn */
+	virtual void OnEquip(const AGun* LastGun);
 
-	/** weapon is now equipped by owner pawn */
+	/** Gun is now equipped by owner pawn */
 	virtual void OnEquipFinished();
 
-	/** weapon is holstered by owner pawn */
+	/** Gun is holstered by owner pawn */
 	virtual void OnUnEquip();
 
-	/** [server] weapon was added to pawn's inventory */
+	/** [server] Gun was added to pawn's inventory */
 	virtual void OnEnterInventory(AALSBaseCharacter* NewOwner);
 
-	/** [server] weapon was removed from pawn's inventory */
+	/** [server] Gun was removed from pawn's inventory */
 	virtual void OnLeaveInventory();
 
 	/** check if it's currently equipped */
@@ -145,20 +145,20 @@ class AGun : public AActor
 	//////////////////////////////////////////////////////////////////////////
 	// Input
 
-	/** [local + server] start weapon fire */
+	/** [local + server] start Gun fire */
 	virtual void StartFire();
 
-	/** [local + server] stop weapon fire */
+	/** [local + server] stop Gun fire */
 	virtual void StopFire();
 
-	/** [all] start weapon reload */
+	/** [all] start Gun reload */
 	virtual void StartReload(bool bFromReplication = false);
 
-	/** [local + server] interrupt weapon reload */
+	/** [local + server] interrupt Gun reload */
 	virtual void StopReload();
 
 	/** [server] performs actual reload */
-	virtual void ReloadWeapon();
+	virtual void ReloadGun();
 
 	/** trigger reload from server */
 	UFUNCTION(reliable, client)
@@ -168,18 +168,18 @@ class AGun : public AActor
 	//////////////////////////////////////////////////////////////////////////
 	// Control
 
-	/** check if weapon can fire */
+	/** check if Gun can fire */
 	bool CanFire() const;
 
-	/** check if weapon can be reloaded */
+	/** check if Gun can be reloaded */
 	bool CanReload() const;
 
 
 	//////////////////////////////////////////////////////////////////////////
 	// Reading data
 
-	/** get current weapon state */
-	EWeaponState::Type GetCurrentState() const;
+	/** get current Gun state */
+	EGunState::Type GetCurrentState() const;
 
 	/** get current ammo amount (total) */
 	int32 GetCurrentAmmo() const;
@@ -193,18 +193,18 @@ class AGun : public AActor
 	/** get max ammo amount */
 	int32 GetMaxAmmo() const;
 
-	/** get weapon mesh (needs pawn owner to determine variant) */
+	/** get Gun mesh (needs pawn owner to determine variant) */
 	USkeletalMeshComponent* GetGunMesh() const;
 
 	/** get pawn owner */
-	UFUNCTION(BlueprintCallable, Category = "Game|Weapon")
+	UFUNCTION(BlueprintCallable, Category = "Game|Gun")
 		class AALSBaseCharacter* GetPawnOwner() const;
 
-	/** icon displayed on the HUD when weapon is equipped as primary */
+	/** icon displayed on the HUD when Gun is equipped as primary */
 	UPROPERTY(EditDefaultsOnly, Category = HUD)
 		FCanvasIcon PrimaryIcon;
 
-	/** icon displayed on the HUD when weapon is secondary */
+	/** icon displayed on the HUD when Gun is secondary */
 	UPROPERTY(EditDefaultsOnly, Category = HUD)
 		FCanvasIcon SecondaryIcon;
 
@@ -248,7 +248,7 @@ class AGun : public AActor
 	UPROPERTY(EditDefaultsOnly, Category = HUD)
 		bool UseCustomAimingCrosshair;
 
-	/** true - crosshair will not be shown unless aiming with the weapon */
+	/** true - crosshair will not be shown unless aiming with the Gun */
 	UPROPERTY(EditDefaultsOnly, Category = HUD)
 		bool bHideCrosshairWhileNotAiming;
 
@@ -256,23 +256,23 @@ class AGun : public AActor
 	UPROPERTY(Transient)
 		float TimerIntervalAdjustment;
 
-	/** Whether to allow automatic weapons to catch up with shorter refire cycles */
+	/** Whether to allow automatic Guns to catch up with shorter refire cycles */
 	UPROPERTY(Config)
-		bool bAllowAutomaticWeaponCatchup = true;
+		bool bAllowAutomaticGunCatchup = true;
 
-	/** check if weapon has infinite ammo (include owner's cheats) */
+	/** check if Gun has infinite ammo (include owner's cheats) */
 	bool HasInfiniteAmmo() const;
 
-	/** check if weapon has infinite clip (include owner's cheats) */
+	/** check if Gun has infinite clip (include owner's cheats) */
 	bool HasInfiniteClip() const;
 
-	/** set the weapon's owning pawn */
+	/** set the Gun's owning pawn */
 	void SetOwningPawn(AALSBaseCharacter* AALSBaseCharacter);
 
-	/** gets last time when this weapon was switched to */
+	/** gets last time when this Gun was switched to */
 	float GetEquipStartedTime() const;
 
-	/** gets the duration of equipping weapon*/
+	/** gets the duration of equipping Gun*/
 	float GetEquipDuration() const;
 
 protected:
@@ -281,16 +281,16 @@ protected:
 	UPROPERTY(Transient, ReplicatedUsing = OnRep_MyPawn)
 		class AALSBaseCharacter* MyPawn;
 
-	/** weapon data */
+	/** Gun data */
 	UPROPERTY(EditDefaultsOnly, Category = Config)
-		FWeaponData WeaponConfig;
+		FGunData GunConfig;
 
 private:
-	/** weapon mesh: 1st person view */
+	/** Gun mesh: 1st person view */
 	UPROPERTY(VisibleDefaultsOnly, Category = Mesh)
 		USkeletalMeshComponent* Mesh1P;
 
-	/** weapon mesh: 3rd person view */
+	/** Gun mesh: 3rd person view */
 	UPROPERTY(VisibleDefaultsOnly, Category = Mesh)
 		USkeletalMeshComponent* Mesh3P;
 protected:
@@ -299,7 +299,7 @@ protected:
 	UPROPERTY(Transient)
 		UAudioComponent* FireAC;
 
-	/** name of bone/socket for muzzle in weapon mesh */
+	/** name of bone/socket for muzzle in Gun mesh */
 	UPROPERTY(EditDefaultsOnly, Category = Effects)
 		FName MuzzleAttachPoint;
 
@@ -316,7 +316,7 @@ protected:
 		UParticleSystemComponent* MuzzlePSCSecondary;
 
 	
-	/** force feedback effect to play when the weapon is fired */
+	/** force feedback effect to play when the Gun is fired */
 	UPROPERTY(EditDefaultsOnly, Category = Effects)
 		UForceFeedbackEffect* FireForceFeedback;
 
@@ -342,7 +342,7 @@ protected:
 
 	/** reload animations */
 	UPROPERTY(EditDefaultsOnly, Category = Animation)
-		FWeaponAnim ReloadAnim;
+		FGunAnim ReloadAnim;
 
 	/** equip sound */
 	UPROPERTY(EditDefaultsOnly, Category = Sound)
@@ -350,11 +350,11 @@ protected:
 
 	/** equip animations */
 	UPROPERTY(EditDefaultsOnly, Category = Animation)
-		FWeaponAnim EquipAnim;
+		FGunAnim EquipAnim;
 
 	/** fire animations */
 	UPROPERTY(EditDefaultsOnly, Category = Animation)
-		FWeaponAnim FireAnim;
+		FGunAnim FireAnim;
 
 	/** is muzzle FX looped? */
 	UPROPERTY(EditDefaultsOnly, Category = Effects)
@@ -371,10 +371,10 @@ protected:
 	/** is fire animation playing? */
 	uint32 bPlayingFireAnim : 1;
 
-	/** is weapon currently equipped? */
+	/** is Gun currently equipped? */
 	uint32 bIsEquipped : 1;
 
-	/** is weapon fire active? */
+	/** is Gun fire active? */
 	uint32 bWantsToFire : 1;
 
 	/** is reload animation playing? */
@@ -384,19 +384,19 @@ protected:
 	/** is equip animation playing? */
 	uint32 bPendingEquip : 1;
 
-	/** weapon is refiring */
+	/** Gun is refiring */
 	uint32 bRefiring;
 
-	/** current weapon state */
-	EWeaponState::Type CurrentState;
+	/** current Gun state */
+	EGunState::Type CurrentState;
 
-	/** time of last successful weapon fire */
+	/** time of last successful Gun fire */
 	float LastFireTime;
 
-	/** last time when this weapon was switched to */
+	/** last time when this Gun was switched to */
 	float EquipStartedTime;
 
-	/** how much time weapon needs to be equipped */
+	/** how much time Gun needs to be equipped */
 	float EquipDuration;
 
 	/** current total ammo */
@@ -417,8 +417,8 @@ protected:
 	/** Handle for efficient management of StopReload timer */
 	FTimerHandle TimerHandle_StopReload;
 
-	/** Handle for efficient management of ReloadWeapon timer */
-	FTimerHandle TimerHandle_ReloadWeapon;
+	/** Handle for efficient management of ReloadGun timer */
+	FTimerHandle TimerHandle_ReloadGun;
 
 	/** Handle for efficient management of HandleFiring timer */
 	FTimerHandle TimerHandle_HandleFiring;
@@ -452,26 +452,26 @@ protected:
 		void OnRep_Reload();
 
 	/** Called in network play to do the cosmetic fx for firing */
-	virtual void SimulateWeaponFire();
+	virtual void SimulateGunFire();
 
 	/** Called in network play to stop cosmetic fx (e.g. for a looping shot). */
-	virtual void StopSimulatingWeaponFire();
+	virtual void StopSimulatingGunFire();
 
 
 	//////////////////////////////////////////////////////////////////////////
-	// Weapon usage
+	// Gun usage
 
-	/** [local] weapon specific fire implementation */
-	virtual void FireWeapon() PURE_VIRTUAL(AGun::FireWeapon, );
+	/** [local] Gun specific fire implementation */
+	virtual void FireGun() PURE_VIRTUAL(AGun::FireGun, );
 
 	/** [server] fire & update ammo */
 	UFUNCTION(reliable, server, WithValidation)
 		void ServerHandleFiring();
 
-	/** [local + server] handle weapon refire, compensating for slack time if the timer can't sample fast enough */
+	/** [local + server] handle Gun refire, compensating for slack time if the timer can't sample fast enough */
 	void HandleReFiring();
 
-	/** [local + server] handle weapon fire */
+	/** [local + server] handle Gun fire */
 	void HandleFiring();
 
 	/** [local + server] firing started */
@@ -480,36 +480,36 @@ protected:
 	/** [local + server] firing finished */
 	virtual void OnBurstFinished();
 
-	/** update weapon state */
-	void SetWeaponState(EWeaponState::Type NewState);
+	/** update Gun state */
+	void SetGunState(EGunState::Type NewState);
 
-	/** determine current weapon state */
-	void DetermineWeaponState();
+	/** determine current Gun state */
+	void DetermineGunState();
 
 
 	//////////////////////////////////////////////////////////////////////////
 	// Inventory
 
-	/** attaches weapon mesh to pawn's mesh */
+	/** attaches Gun mesh to pawn's mesh */
 	void AttachMeshToPawn();
 
-	/** detaches weapon mesh from pawn */
+	/** detaches Gun mesh from pawn */
 	void DetachMeshFromPawn();
 
 
 	//////////////////////////////////////////////////////////////////////////
-	// Weapon usage helpers
+	// Gun usage helpers
 
-	/** play weapon sounds */
-	UAudioComponent* PlayWeaponSound(USoundCue* Sound);
+	/** play Gun sounds */
+	UAudioComponent* PlayGunSound(USoundCue* Sound);
 
-	/** play weapon animations */
-	float PlayWeaponAnimation(const FWeaponAnim& Animation);
+	/** play Gun animations */
+	float PlayGunAnimation(const FGunAnim& Animation);
 
-	/** stop playing weapon animations */
-	void StopWeaponAnimation(const FWeaponAnim& Animation);
+	/** stop playing Gun animations */
+	void StopGunAnimation(const FGunAnim& Animation);
 
-	/** Get the aim of the weapon, allowing for adjustments to be made by the weapon */
+	/** Get the aim of the Gun, allowing for adjustments to be made by the Gun */
 	virtual FVector GetAdjustedAim() const;
 
 	/** Get the aim of the camera */
@@ -518,14 +518,14 @@ protected:
 	/** get the originating location for camera damage */
 	FVector GetCameraDamageStartLocation(const FVector& AimDir) const;
 
-	/** get the muzzle location of the weapon */
+	/** get the muzzle location of the Gun */
 	FVector GetMuzzleLocation() const;
 
-	/** get direction of weapon's muzzle */
+	/** get direction of Gun's muzzle */
 	FVector GetMuzzleDirection() const;
 
 	/** find hit */
-	FHitResult WeaponTrace(const FVector& TraceFrom, const FVector& TraceTo) const;
+	FHitResult GunTrace(const FVector& TraceFrom, const FVector& TraceTo) const;
 
 protected:
 	/** Returns Mesh1P subobject **/

@@ -46,9 +46,59 @@ AALSBaseCharacter::AALSBaseCharacter(const FObjectInitializer& ObjectInitializer
 	bAlwaysRelevant = true;
 }
 
+	///Guns Guns etc
 AGun* AALSBaseCharacter::GetGun()
 {
+	if (CurrentGun != nullptr)
+	{
+	 return CurrentGun;
+	}
 	return nullptr;
+}
+
+void AALSBaseCharacter::OnRep_CurrentGun(AGun* LastGun)
+{
+	SetCurrentGun(CurrentGun, LastGun);
+}
+
+void AALSBaseCharacter::SetCurrentGun(AGun* NewGun, AGun* LastGun)
+{
+	AGun* LocalLastGun = nullptr;
+
+	if (LastGun != NULL)
+	{
+		LocalLastGun = LastGun;
+	}
+	else if (NewGun != CurrentGun)
+	{
+		LocalLastGun = CurrentGun;
+	}
+
+	// unequip previous
+	if (LocalLastGun)
+	{
+		LocalLastGun->OnUnEquip();
+	}
+
+	CurrentGun = NewGun;
+
+	// equip new one
+	if (NewGun)
+	{
+		NewGun->SetOwningPawn(this);	// Make sure Gun's MyPawn is pointing back to us. During replication, we can't guarantee APawn::CurrentGun will rep after AGun::MyPawn!
+
+		NewGun->OnEquip(LastGun);
+	}
+}
+
+bool AALSBaseCharacter::CanFire()
+{
+	if (MovementState != EALSMovementState::Ragdoll)
+	{
+		return true;
+	}
+
+	return false;
 }
 
 void AALSBaseCharacter::Restart()
