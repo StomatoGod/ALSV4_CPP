@@ -459,69 +459,6 @@ void UALSCharacterAnimInstance::ResetIKOffsets(float DeltaSeconds)
 		FRotator::ZeroRotator, DeltaSeconds, 15.0f);
 }
 
-/**
-void UALSCharacterAnimInstance::SetFootOffsets(float DeltaSeconds, FName EnableFootIKCurve, FName IKFootBone,
-	FName RootBone, FVector& CurLocationTarget, FVector& CurLocationOffset,
-	FRotator& CurRotationOffset, bool LeftFoot)
-{
-	// Only update Foot IK offset values if the Foot IK curve has a weight. If it equals 0, clear the offset values.
-	if (GetCurveValue(EnableFootIKCurve) <= 0)
-	{
-		CurLocationOffset = FVector::ZeroVector;
-		CurRotationOffset = FRotator::ZeroRotator;
-		return;
-	}
-
-	// Step 1: Trace downward from the foot location to find the geometry.
-	// If the surface is walkable, save the Impact Location and Normal.
-	USkeletalMeshComponent* OwnerComp = GetOwningComponent();
-	FVector IKFootFloorLoc = OwnerComp->GetSocketLocation(IKFootBone);
-	IKFootFloorLoc.Z = OwnerComp->GetSocketLocation(RootBone).Z;
-
-	UWorld* World = GetWorld();
-	check(World);
-
-	FCollisionQueryParams Params;
-	Params.AddIgnoredActor(Character);
-
-	FHitResult HitResult;
-	World->LineTraceSingleByChannel(HitResult,
-		IKFootFloorLoc + FVector(0.0, 0.0, Config.IK_TraceDistanceAboveFoot),
-		IKFootFloorLoc - FVector(0.0, 0.0, Config.IK_TraceDistanceBelowFoot),
-		ECC_Visibility, Params);
-
-	FRotator TargetRotOffset = FRotator::ZeroRotator;
-	if (Character->GetCharacterMovement()->IsWalkable(HitResult))
-	{
-		FVector ImpactPoint = HitResult.ImpactPoint;
-		FVector ImpactNormal = HitResult.ImpactNormal;
-
-		// Step 1.1: Find the difference in location from the Impact point and the expected (flat) floor location.
-		// These values are offset by the nomrmal multiplied by the
-		// foot height to get better behavior on angled surfaces.
-		CurLocationTarget = (ImpactPoint + ImpactNormal * Config.FootHeight) -
-			(IKFootFloorLoc + FVector(0, 0, Config.FootHeight));
-
-		//UE_LOG(LogTemp, Warning, TEXT("IK Hit ImpactPoint: %s"), *HitResult.ImpactPoint.ToString());
-		//UE_LOG(LogTemp, Warning, TEXT("IK Hit Location: %s"), *HitResult.Location.ToString());
-		//UE_LOG(LogTemp, Warning, TEXT("IK Current Location Target: %s"), *CurLocationTarget.ToString());
-
-		// Step 1.2: Calculate the Rotation offset by getting the Atan2 of the Impact Normal.
-		TargetRotOffset.Pitch = -FMath::RadiansToDegrees(FMath::Atan2(ImpactNormal.X, ImpactNormal.Z));
-		TargetRotOffset.Roll = FMath::RadiansToDegrees(FMath::Atan2(ImpactNormal.Y, ImpactNormal.Z));
-	}
-
-
-	// Step 2: Interp the Current Location Offset to the new target value.
-	// Interpolate at different speeds based on whether the new target is above or below the current one.
-	const float InterpSpeed = CurLocationOffset.Z > CurLocationTarget.Z ? 30.f : 15.0f;
-	CurLocationOffset = FMath::VInterpTo(CurLocationOffset, CurLocationTarget, DeltaSeconds, InterpSpeed);
-
-	// Step 3: Interp the Current Rotation Offset to the new target value.
-	CurRotationOffset = FMath::RInterpTo(CurRotationOffset, TargetRotOffset, DeltaSeconds, 30.0f);
-}
-**/
-
 
 void UALSCharacterAnimInstance::SetFootOffsets(float DeltaSeconds, FName EnableFootIKCurve, FName IKFootBone,
 	FName RootBone, FVector& CurLocationTarget, FVector& CurLocationOffset,
@@ -562,23 +499,18 @@ void UALSCharacterAnimInstance::SetFootOffsets(float DeltaSeconds, FName EnableF
 		FVector ImpactPoint = HitResult.ImpactPoint;
 		FVector ImpactNormal = HitResult.ImpactNormal;
 		float ImpactPointFloorDistance = FMath::Abs((IKFootFloorLoc - ImpactPoint).Size());
-		//IKFootFloorLoc -= TraceDirection * ImpactPointFloorDistance;
 		CurLocationTarget = (ImpactPoint + ImpactNormal * Config.FootHeight) - (IKFootFloorLoc + (TraceDirection * Config.FootHeight));
-		//CurLocationTarget += TraceDirection * ImpactPointFloorDistance;
-		
+	
 		// Step 1.2: Calculate the Rotation offset by getting the Atan2 of the Impact Normal.
-		if ((TraceDirection | FVector(0.f,0.f,1.f)) < THRESH_NORMALS_ARE_PARALLEL)
+		if ((Character->GetActorUpVector() | FVector(0.f,0.f,1.f)) < THRESH_NORMALS_ARE_PARALLEL)
 		{	
-		
-			float Dot = TraceDirection | FVector(0.f, 0.f, 1.f);
+			float Dot = Character->GetActorUpVector() | FVector(0.f, 0.f, 1.f);
 			float DotAcos = FMath::Acos(Dot);
-			float DotAngle = DotAcos * 57.2958;
-			ImpactNormal = ImpactNormal.RotateAngleAxis(DotAngle * -1.f, FVector(1.f,0.f,0.f));
+			float DotAngle = DotAcos * 57.2958 * -1.f;
+			GEngine->AddOnScreenDebugMessage(-10, 20.f, FColor::Yellow, FString::Printf(TEXT("AnimInstance Dot Angle: %f"), DotAngle));
+			ImpactNormal = ImpactNormal.RotateAngleAxis(DotAngle, FVector(1.f, 0.f, 0.f));
 		}
-		else if ((TraceDirection | FVector(0.f, 0.f, 1.f)) < 0.f)
-		{
-			UE_LOG(LogTemp, Error, TEXT("Dot is negative"));
-		}
+		
 		TargetRotOffset.Pitch = -FMath::RadiansToDegrees(FMath::Atan2(ImpactNormal.X, ImpactNormal.Z));
 		TargetRotOffset.Roll = FMath::RadiansToDegrees(FMath::Atan2(ImpactNormal.Y, ImpactNormal.Z));
 	}

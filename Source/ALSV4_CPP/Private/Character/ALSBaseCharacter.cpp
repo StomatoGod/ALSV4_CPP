@@ -1843,6 +1843,12 @@ void AALSBaseCharacter::GetControlForwardRightVector(FVector& Forward, FVector& 
 
 void AALSBaseCharacter::OnFire()
 {
+
+	if (CurrentGun)
+	{
+		CurrentGun->StartFire();
+	}
+/**
 TArray<AActor*> IgnoreArray;
 	FCollisionQueryParams CollisionParams;
 	CollisionParams.AddIgnoredActor(this);
@@ -1874,6 +1880,7 @@ TArray<AActor*> IgnoreArray;
 			}
 		}
 	}
+	**/
 }
 
 FVector AALSBaseCharacter::GetPlayerMovementInput() const

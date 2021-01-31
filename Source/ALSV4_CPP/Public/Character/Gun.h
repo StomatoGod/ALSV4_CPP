@@ -85,9 +85,11 @@ struct FGunAnim
 		UAnimMontage* Pawn3P;
 };
 
-UCLASS(Abstract, Blueprintable)
-class AGun : public AActor
+//UCLASS(Abstract, Blueprintable)
+UCLASS(Blueprintable)
+class ALSV4_CPP_API AGun : public AActor
 {
+	//GENERATED_BODY()
 	GENERATED_UCLASS_BODY()
 
 		/** perform initial setup */

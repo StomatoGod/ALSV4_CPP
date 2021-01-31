@@ -410,7 +410,7 @@ void AGun::UseAmmo()
 	
 	 if (PlayerController)
 	{
-		//AShooterPlayerState* PlayerState = Cast<AShooterPlayerState>(PlayerController->PlayerState);
+		//AAAADPlayerState* PlayerState = Cast<AAAADPlayerState>(PlayerController->PlayerState);
 		switch (GetAmmoType())
 		{
 		case EAmmoType::ERocket:

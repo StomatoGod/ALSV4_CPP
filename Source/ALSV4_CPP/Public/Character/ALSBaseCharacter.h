@@ -15,6 +15,8 @@
 #include "Engine/DataTable.h"
 #include "GameFramework/Character.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "DependencyFix/Public/AAADStructLibrary.h"
+#include "DependencyFix/Public/PhysicsObject.h"
 
 #include "ALSBaseCharacter.generated.h"
 
@@ -45,7 +47,7 @@ class ALSV4_CPP_API AALSBaseCharacter : public ACharacter
 public:
 	AALSBaseCharacter(const FObjectInitializer& ObjectInitializer);
 
-
+	APhysicsObject* PhysicsObjectTest;
 	AGun* GetGun();
 
 	UPROPERTY(Transient, ReplicatedUsing = OnRep_CurrentGun)
