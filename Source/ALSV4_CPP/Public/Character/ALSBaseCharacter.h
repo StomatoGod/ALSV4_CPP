@@ -20,12 +20,17 @@
 
 #include "ALSBaseCharacter.generated.h"
 
-class AGun;
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnEquipWeapon, AALSBaseCharacter*, AWeapon* /* new */);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnUnEquipWeapon, AALSBaseCharacter*, AWeapon* /* old */);
+
+class AWeapon;
+class ASingleShotTestGun;
 class UTimelineComponent;
 class UAnimInstance;
 class UAnimMontage;
 class UALSCharacterAnimInstance;
 enum class EVisibilityBasedAnimTickOption : uint8;
+enum class EWeaponType : uint8;
 
 /*
  * Base character class
@@ -44,19 +49,41 @@ class ALSV4_CPP_API AALSBaseCharacter : public ACharacter
 	/** get max health */
 	int32 GetMaxHealth() const;
 
+
+	/** Global notification when a character equips a weapon. Needed for replication graph. */
+	static FOnEquipWeapon NotifyEquipWeapon;
+
+	/** Global notification when a character un-equips a weapon. Needed for replication graph. */
+	static FOnUnEquipWeapon NotifyUnEquipWeapon;
+
+	void EquipWeapon(class AWeapon* Weapon);
+
+	
+
 public:
 	AALSBaseCharacter(const FObjectInitializer& ObjectInitializer);
 
 	APhysicsObject* PhysicsObjectTest;
-	AGun* GetGun();
+	AWeapon* GetWeapon();
 
-	UPROPERTY(Transient, ReplicatedUsing = OnRep_CurrentGun)
-	AGun* CurrentGun;
+	UPROPERTY(Transient, ReplicatedUsing = OnRep_CurrentWeapon)
+	AWeapon* CurrentWeapon;
 
 	UFUNCTION()
-		void OnRep_CurrentGun(AGun* LastGun);
+		void OnRep_CurrentWeapon(AWeapon* LastWeapon);
 
-	void SetCurrentGun(AGun* NewGun, AGun* LastGun = NULL);
+	void SetCurrentWeapon(class AWeapon* NewWeapon, class AWeapon* LastWeapon = NULL);
+
+	AWeapon* SpawnWeapon(EWeaponType WeaponType);
+
+	UPROPERTY(EditAnywhere)
+		TSubclassOf<class AWeapon> WeaponToSpawn;
+
+	UPROPERTY(EditAnywhere)
+		TSubclassOf<class AWeapon> TestWeaponToSpawn;
+
+	//UPROPERTY(Transient, ReplicatedUsing = OnRep_CurrentWeapon)
+	TArray<AWeapon*>Arsenal;
 
 	bool CanFire();
 	
@@ -483,6 +510,8 @@ protected:
 	void PlayerCameraUpInput(float Value);
 
 	void PlayerCameraRightInput(float Value);
+
+	void UsePressedAction();
 
 	void JumpPressedAction();
 

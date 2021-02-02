@@ -8,7 +8,8 @@
 
 #include "Character/ALSBaseCharacter.h"
 
-#include "Character/Gun.h"
+#include "Character/Weapon.h"
+#include "Character/SingleShotTestGun.h"
 #include "Character/ALSPlayerController.h"
 #include "Character/Animation/ALSCharacterAnimInstance.h"
 #include "Library/ALSMathLibrary.h"
@@ -23,7 +24,13 @@
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
 #include "Net/UnrealNetwork.h"
+#include "DependencyFix/Public/PhysicsItem.h"
+#include "DependencyFix/Public/Library/ItemEnumLibrary.h"
 #include "DrawDebugHelpers.h"
+
+
+FOnEquipWeapon AALSBaseCharacter::NotifyEquipWeapon;
+FOnUnEquipWeapon AALSBaseCharacter::NotifyUnEquipWeapon;
 
 
 
@@ -46,48 +53,53 @@ AALSBaseCharacter::AALSBaseCharacter(const FObjectInitializer& ObjectInitializer
 	bAlwaysRelevant = true;
 }
 
-	///Guns Guns etc
-AGun* AALSBaseCharacter::GetGun()
+	///Weapons Weapons etc
+AWeapon* AALSBaseCharacter::GetWeapon()
 {
-	if (CurrentGun != nullptr)
+	if (CurrentWeapon != nullptr)
 	{
-	 return CurrentGun;
+	 return CurrentWeapon;
 	}
 	return nullptr;
 }
 
-void AALSBaseCharacter::OnRep_CurrentGun(AGun* LastGun)
+
+void AALSBaseCharacter::OnRep_CurrentWeapon(AWeapon* LastWeapon)
 {
-	SetCurrentGun(CurrentGun, LastGun);
+	SetCurrentWeapon(CurrentWeapon, LastWeapon);
 }
 
-void AALSBaseCharacter::SetCurrentGun(AGun* NewGun, AGun* LastGun)
+void AALSBaseCharacter::SetCurrentWeapon(AWeapon* NewWeapon, AWeapon* LastWeapon)
 {
-	AGun* LocalLastGun = nullptr;
+	AWeapon* LocalLastWeapon = nullptr;
 
-	if (LastGun != NULL)
+	if (LastWeapon != NULL)
 	{
-		LocalLastGun = LastGun;
+		LocalLastWeapon = LastWeapon;
 	}
-	else if (NewGun != CurrentGun)
+	else if (NewWeapon != CurrentWeapon)
 	{
-		LocalLastGun = CurrentGun;
+		LocalLastWeapon = CurrentWeapon;
 	}
 
 	// unequip previous
-	if (LocalLastGun)
+	if (LocalLastWeapon)
 	{
-		LocalLastGun->OnUnEquip();
+		//LocalLastWeapon->OnUnEquip();
 	}
 
-	CurrentGun = NewGun;
+	CurrentWeapon = NewWeapon;
 
-	// equip new one
-	if (NewGun)
+	if (CurrentWeapon == NewWeapon)
 	{
-		NewGun->SetOwningPawn(this);	// Make sure Gun's MyPawn is pointing back to us. During replication, we can't guarantee APawn::CurrentGun will rep after AGun::MyPawn!
+		UE_LOG(LogClass, Warning, TEXT("New WEapon Equip! "));
+	}
+	// equip new one
+	if (NewWeapon)
+	{
+		//NewWeapon->SetOwningPawn(this);	// Make sure Weapon's MyPawn is pointing back to us. During replication, we can't guarantee APawn::CurrentWeapon will rep after AWeapon::MyPawn!
 
-		NewGun->OnEquip(LastGun);
+		//NewWeapon->OnEquip(LastWeapon);
 	}
 }
 
@@ -137,6 +149,7 @@ void AALSBaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 	PlayerInputComponent->BindAction("CameraAction", IE_Released, this, &AALSBaseCharacter::CameraReleasedAction);
 	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &AALSBaseCharacter::OnFire);
 	PlayerInputComponent->BindAction("GravityTestAction", IE_Pressed, this, &AALSBaseCharacter::ZeroGravTest);
+	PlayerInputComponent->BindAction("UseAction", IE_Pressed, this, &AALSBaseCharacter::UsePressedAction);
 	//test
 	
 }
@@ -1844,9 +1857,9 @@ void AALSBaseCharacter::GetControlForwardRightVector(FVector& Forward, FVector& 
 void AALSBaseCharacter::OnFire()
 {
 
-	if (CurrentGun)
+	if (CurrentWeapon)
 	{
-		CurrentGun->StartFire();
+		CurrentWeapon->StartFire();
 	}
 /**
 TArray<AActor*> IgnoreArray;
@@ -1932,6 +1945,73 @@ void AALSBaseCharacter::PlayerCameraRightInput(float Value)
 
 	//PitchThisFrame+= 10.f * Value;
 	AddControllerYawInput(LookLeftRightRate * Value);
+}
+
+void AALSBaseCharacter::EquipWeapon(AWeapon* Weapon)
+{
+	if (Weapon)
+	{
+		if (GetLocalRole() == ROLE_Authority)
+		{
+			SetCurrentWeapon(Weapon, CurrentWeapon);
+		}
+		else
+		{
+			//ServerEquipWeapon(Weapon);
+		}
+	}
+}
+
+AWeapon* AALSBaseCharacter::SpawnWeapon(EWeaponType WeaponType)
+{
+
+	if (WeaponType == EWeaponType::SingleShotTestGun)
+	{
+		FActorSpawnParameters SpawnParams;
+		//Spawn param collision does not affect in editor spawning unfortunately.
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		FRotator Rotation = FRotator(0.f, 0.f, 0.f);
+		ASingleShotTestGun* TestWeapon = GetWorld()->SpawnActor<ASingleShotTestGun>(TestWeaponToSpawn, GetActorLocation(), Rotation, SpawnParams);
+		TestWeapon->Tags.Add("AssPiss");
+		Arsenal.Add(TestWeapon);
+
+		return TestWeapon;
+	}
+	return nullptr;
+}
+void AALSBaseCharacter::UsePressedAction()
+{
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(this);
+
+	FHitResult Hit;
+	FVector Start = FirstPersonCameraComponent->GetComponentLocation();
+	FVector Forward = FirstPersonCameraComponent->GetForwardVector();
+	GetWorld()->LineTraceSingleByChannel(Hit, Start, Start + (Forward * 400.f),
+		ECC_GameTraceChannel10, Params);
+	
+	if (Hit.GetActor())
+	{
+		if (Hit.GetActor()->IsA<APhysicsItem>())
+		{
+			DrawDebugLine(GetWorld(), Start, Hit.Location, FColor::Blue, false, 1.f, 0, 8.f);
+			APhysicsItem* Item = Cast<APhysicsItem>(Hit.GetActor());
+			if (Item->ItemType == EItemType::Weapon)
+			{
+				if (Item->WeaponType == EWeaponType::SingleShotTestGun)
+				{
+					//CurrentWeapon = SpawnWeapon(EWeaponType::SingleShotTestGun);
+					EquipWeapon(SpawnWeapon(EWeaponType::SingleShotTestGun));
+				}
+			}
+			else
+			{
+				UE_LOG(LogClass, Warning, TEXT("PhysicsItem ItemType Not Set "));
+			}
+			
+		}
+		
+	}
 }
 
 void AALSBaseCharacter::JumpPressedAction()
