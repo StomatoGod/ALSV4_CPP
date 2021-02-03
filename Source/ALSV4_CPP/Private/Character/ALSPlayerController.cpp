@@ -48,3 +48,8 @@ void AALSPlayerController::PlayerTick(float DeltaTime)
 	}
 	//PlayerCameraManager->bUseClientSideCameraUpdates = true;
 }
+
+bool AALSPlayerController::HasGodMode() const
+{
+	return bGodMode;
+}

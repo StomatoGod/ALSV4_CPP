@@ -26,6 +26,7 @@
 #include "Net/UnrealNetwork.h"
 #include "DependencyFix/Public/PhysicsItem.h"
 #include "DependencyFix/Public/Library/ItemEnumLibrary.h"
+#include "Character/GravHud.h"
 #include "DrawDebugHelpers.h"
 
 
@@ -168,11 +169,248 @@ void AALSBaseCharacter::PostInitializeComponents()
 
 	MyCharacterMovementComponent = Cast<UALSCharacterMovementComponent>(Super::GetMovementComponent());
 }
+void AALSBaseCharacter::OnRep_LastTakeHitInfo()
+{
+	if (LastTakeHitInfo.bKilled)
+	{
+		OnDeath(LastTakeHitInfo.ActualDamage, LastTakeHitInfo.GetDamageEvent(), LastTakeHitInfo.PawnInstigator.Get(), LastTakeHitInfo.DamageCauser.Get());
+	}
+	else
+	{
+		PlayHit(LastTakeHitInfo.ActualDamage, LastTakeHitInfo.GetDamageEvent(), LastTakeHitInfo.PawnInstigator.Get(), LastTakeHitInfo.DamageCauser.Get());
+	}
+}
+
+void AALSBaseCharacter::ReplicateHit(float Damage, struct FDamageEvent const& DamageEvent, class APawn* PawnInstigator, class AActor* DamageCauser, bool bKilled)
+{
+	const float TimeoutTime = GetWorld()->GetTimeSeconds() + 0.5f;
+
+	FDamageEvent const& LastDamageEvent = LastTakeHitInfo.GetDamageEvent();
+	if ((PawnInstigator == LastTakeHitInfo.PawnInstigator.Get()) && (LastDamageEvent.DamageTypeClass == LastTakeHitInfo.DamageTypeClass) && (LastTakeHitTimeTimeout == TimeoutTime))
+	{
+		// same frame damage
+		if (bKilled && LastTakeHitInfo.bKilled)
+		{
+			// Redundant death take hit, just ignore it
+			return;
+		}
+
+		// otherwise, accumulate damage done this frame
+		Damage += LastTakeHitInfo.ActualDamage;
+	}
+
+	LastTakeHitInfo.ActualDamage = Damage;
+	LastTakeHitInfo.PawnInstigator = Cast<AALSBaseCharacter>(PawnInstigator);
+	LastTakeHitInfo.DamageCauser = DamageCauser;
+	LastTakeHitInfo.SetDamageEvent(DamageEvent);
+	LastTakeHitInfo.bKilled = bKilled;
+	LastTakeHitInfo.EnsureReplication();
+
+	LastTakeHitTimeTimeout = TimeoutTime;
+}
+void AALSBaseCharacter::OnDeath(float KillingDamage, struct FDamageEvent const& DamageEvent, class APawn* PawnInstigator, class AActor* DamageCauser)
+{
+	if (bIsDying)
+	{
+		return;
+	}
+
+	SetReplicatingMovement(false);
+	TearOff();
+	bIsDying = true;
+
+	if (GetLocalRole() == ROLE_Authority)
+	{
+		ReplicateHit(KillingDamage, DamageEvent, PawnInstigator, DamageCauser, true);
+
+		// play the force feedback effect on the client player controller
+		AALSPlayerController* PC = Cast<AALSPlayerController>(Controller);
+		if (PC && DamageEvent.DamageTypeClass)
+		{
+			//UShooterDamageType* DamageType = Cast<UShooterDamageType>(DamageEvent.DamageTypeClass->GetDefaultObject());
+			//if (DamageType && DamageType->KilledForceFeedback && PC->IsVibrationEnabled())
+			//{
+			//	FForceFeedbackParameters FFParams;
+			//	FFParams.Tag = "Damage";
+			//	PC->ClientPlayForceFeedback(DamageType->KilledForceFeedback, FFParams);
+			//}
+		}
+	}
+
+	// cannot use IsLocallyControlled here, because even local client's controller may be NULL here
+	//if (GetNetMode() != NM_DedicatedServer && DeathSound && Mesh1P && Mesh1P->IsVisible())
+	//{
+	//	UGameplayStatics::PlaySoundAtLocation(this, DeathSound, GetActorLocation());
+	//}
+
+	// remove all weapons
+	//DestroyInventory();
+
+	// switch back to 3rd person view
+	//UpdatePawnMeshes();
+
+	//DetachFromControllerPendingDestroy();
+//	StopAllAnimMontages();
+
+	//if (LowHealthWarningPlayer && LowHealthWarningPlayer->IsPlaying())
+	//{
+	//	LowHealthWarningPlayer->Stop();
+	//}
+
+	//if (RunLoopAC)
+	//{
+	//	RunLoopAC->Stop();
+	//}
+/**
+	if (GetMesh())
+	{
+		static FName CollisionProfileName(TEXT("Ragdoll"));
+		GetMesh()->SetCollisionProfileName(CollisionProfileName);
+	}
+	SetActorEnableCollision(true);
+	**/
+	// Death anim
+	//float DeathAnimDuration = PlayAnimMontage(DeathAnim);
+
+	// Ragdoll
+
+	ReplicatedRagdollStart();
+	
+}
+
+bool AALSBaseCharacter::Die(float KillingDamage, FDamageEvent const& DamageEvent, AController* Killer, AActor* DamageCauser)
+{
+	if (!CanDie(KillingDamage, DamageEvent, Killer, DamageCauser))
+	{
+		return false;
+	}
+
+	Health = FMath::Min(0.0f, Health);
+
+	// if this is an environmental death then refer to the previous killer so that they receive credit (knocked into lava pits, etc)
+	UDamageType const* const DamageType = DamageEvent.DamageTypeClass ? DamageEvent.DamageTypeClass->GetDefaultObject<UDamageType>() : GetDefault<UDamageType>();
+	Killer = GetDamageInstigator(Killer, *DamageType);
+
+	AController* const KilledPlayer = (Controller != NULL) ? Controller : Cast<AController>(GetOwner());
+	//GetWorld()->GetAuthGameMode<AShooterGameMode>()->Killed(Killer, KilledPlayer, this, DamageType);
+
+	//NetUpdateFrequency = GetDefault<AShooterCharacter>()->NetUpdateFrequency;
+	GetCharacterMovement()->ForceReplicationUpdate();
+
+	OnDeath(KillingDamage, DamageEvent, Killer ? Killer->GetPawn() : NULL, DamageCauser);
+	return true;
+}
+
+bool AALSBaseCharacter::CanDie(float KillingDamage, FDamageEvent const& DamageEvent, AController* Killer, AActor* DamageCauser) const
+{
+	if (bIsDying										// already dying
+		|| IsPendingKill()								// already destroyed
+		|| GetLocalRole() != ROLE_Authority				// not authority
+		//|| GetWorld()->GetAuthGameMode<AShooterGameMode>() == NULL
+		//|| GetWorld()->GetAuthGameMode<AShooterGameMode>()->GetMatchState() == MatchState::LeavingMap)
+		)// level transition occurring
+	{
+		return false;
+	}
+
+	return true;
+}
+
+
+float AALSBaseCharacter::TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, class AActor* DamageCauser)
+{
+	AALSPlayerController* PC = Cast<AALSPlayerController>(Controller);
+	if (PC && PC->HasGodMode())
+	{
+		return 0.f;
+	}
+
+	if (Health <= 0.f)
+	{
+		return 0.f;
+	}
+
+	// Modify based on game rules.
+	//AShooterGameMode* const Game = GetWorld()->GetAuthGameMode<AShooterGameMode>();
+	//Damage = Game ? Game->ModifyDamage(Damage, this, DamageEvent, EventInstigator, DamageCauser) : 0.f;
+
+	const float ActualDamage = Super::TakeDamage(Damage, DamageEvent, EventInstigator, DamageCauser);
+	if (ActualDamage > 0.f)
+	{
+		Health -= ActualDamage;
+		if (Health <= 0)
+		{
+			Die(ActualDamage, DamageEvent, EventInstigator, DamageCauser);
+		}
+		else
+		{
+			PlayHit(ActualDamage, DamageEvent, EventInstigator ? EventInstigator->GetPawn() : NULL, DamageCauser);
+		}
+
+		MakeNoise(1.0f, EventInstigator ? EventInstigator->GetPawn() : this);
+	}
+
+	return ActualDamage;
+}
+
+void AALSBaseCharacter::PlayHit(float DamageTaken, struct FDamageEvent const& DamageEvent, class APawn* PawnInstigator, class AActor* DamageCauser)
+{
+	if (GetLocalRole() == ROLE_Authority)
+	{
+		ReplicateHit(DamageTaken, DamageEvent, PawnInstigator, DamageCauser, false);
+
+		// play the force feedback effect on the client player controller
+		AALSPlayerController* PC = Cast<AALSPlayerController>(Controller);
+		if (PC && DamageEvent.DamageTypeClass)
+		{
+			//UShooterDamageType* DamageType = Cast<UShooterDamageType>(DamageEvent.DamageTypeClass->GetDefaultObject());
+			//if (DamageType && DamageType->HitForceFeedback && PC->IsVibrationEnabled())
+			//{
+			//	FForceFeedbackParameters FFParams;
+			//	FFParams.Tag = "Damage";
+			//	PC->ClientPlayForceFeedback(DamageType->HitForceFeedback, FFParams);
+			//}
+		}
+	}
+
+	if (DamageTaken > 0.f)
+	{
+		ApplyDamageMomentum(DamageTaken, DamageEvent, PawnInstigator, DamageCauser);
+	}
+
+	AALSPlayerController* MyPC = Cast<AALSPlayerController>(Controller);
+//	AShooterHUD* MyHUD = MyPC ? Cast<AShooterHUD>(MyPC->GetHUD()) : NULL;
+	//if (MyHUD)
+	//{
+	//	MyHUD->NotifyWeaponHit(DamageTaken, DamageEvent, PawnInstigator);
+	//}
+
+	if (PawnInstigator && PawnInstigator != this && PawnInstigator->IsLocallyControlled())
+	{
+		AALSPlayerController* InstigatorPC = Cast<AALSPlayerController>(PawnInstigator->Controller);
+		AGravHud* InstigatorHUD = InstigatorPC ? Cast<AGravHud>(InstigatorPC->GetHUD()) : NULL;
+		if (InstigatorHUD)
+		{
+			//InstigatorHUD->NotifyEnemyHit();
+		}
+	}
+}
+
+void AALSBaseCharacter::PreReplication(IRepChangedPropertyTracker& ChangedPropertyTracker)
+{
+	Super::PreReplication(ChangedPropertyTracker);
+
+	// Only replicate this property for a short duration after it changes so join in progress players don't get spammed with fx when joining late
+	DOREPLIFETIME_ACTIVE_OVERRIDE(AALSBaseCharacter, LastTakeHitInfo, GetWorld() && GetWorld()->GetTimeSeconds() < LastTakeHitTimeTimeout);
+}
+
 
 void AALSBaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
+	DOREPLIFETIME(AALSBaseCharacter, Health);
+	DOREPLIFETIME(AALSBaseCharacter, CurrentWeapon);
 	DOREPLIFETIME(AALSBaseCharacter, TargetRagdollLocation);
 	DOREPLIFETIME(AALSBaseCharacter, ReplicatedQuatYawRotation);
 	DOREPLIFETIME_CONDITION(AALSBaseCharacter, CameraRotation, COND_SkipOwner);
@@ -694,7 +932,9 @@ void AALSBaseCharacter::EventOnLanded()
 
 	if (bRagdollOnLand && VelZ > RagdollOnLandVelocity)
 	{
-		ReplicatedRagdollStart();
+		//ReplicatedRagdollStart();
+		//Adding breakfall here instead of ragdoll for now
+		OnBreakfall();
 	}
 	else if (bBreakfallOnLand && bHasMovementInput && VelZ >= BreakfallOnLandVelocity)
 	{
@@ -1960,6 +2200,37 @@ void AALSBaseCharacter::EquipWeapon(AWeapon* Weapon)
 			//ServerEquipWeapon(Weapon);
 		}
 	}
+}
+
+bool AALSBaseCharacter::IsTargeting() const
+{
+	return bIsTargeting;
+}
+
+void AALSBaseCharacter::SetTargeting(bool bNewTargeting)
+{
+	bIsTargeting = bNewTargeting;
+
+	UE_LOG(LogClass, Warning, TEXT("Targetting "));
+	//if (TargetingSound)
+	//{
+	//	UGameplayStatics::SpawnSoundAttached(TargetingSound, GetRootComponent());
+//	}
+
+	if (GetLocalRole() < ROLE_Authority)
+	{
+		ServerSetTargeting(bNewTargeting);
+	}
+}
+
+bool AALSBaseCharacter::ServerSetTargeting_Validate(bool bNewTargeting)
+{
+	return true;
+}
+
+void AALSBaseCharacter::ServerSetTargeting_Implementation(bool bNewTargeting)
+{
+	SetTargeting(bNewTargeting);
 }
 
 AWeapon* AALSBaseCharacter::SpawnWeapon(EWeaponType WeaponType)

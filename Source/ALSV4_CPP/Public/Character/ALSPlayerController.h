@@ -27,9 +27,14 @@ class ALSV4_CPP_API AALSPlayerController : public APlayerController
 public:
 	void OnRestartPawn(APawn* NewPawn);
 	FRotator RotationInputStored;
+	/** get gode mode cheat */
+	bool HasGodMode() const;
 
 private:
 	/** Main character reference */
 	UPROPERTY()
 	AALSBaseCharacter* PossessedCharacter = nullptr;
+	/** god mode cheat */
+	UPROPERTY(Transient)
+		uint8 bGodMode : 1;
 };

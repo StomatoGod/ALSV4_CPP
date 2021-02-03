@@ -86,7 +86,7 @@ struct FWeaponAnim
 };
 
 //UCLASS(Abstract, Blueprintable)
-UCLASS(Blueprintable)
+UCLASS(Abstract, Blueprintable)
 class ALSV4_CPP_API AWeapon : public AActor
 {
 	//GENERATED_BODY()
