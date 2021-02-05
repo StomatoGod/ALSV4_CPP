@@ -17,7 +17,7 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "DependencyFix/Public/AAADStructLibrary.h"
 #include "DependencyFix/Public/PhysicsObject.h"
-#include "Library/ShooterTypes.h"
+#include "Character/AAADTypes.h"
 #include "ALSBaseCharacter.generated.h"
 
 
@@ -97,6 +97,20 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Game|Weapon")
 		bool IsTargeting() const;
+	
+	/** current firing state */
+	uint8 bWantsToFire : 1;
+
+	/** [local] starts weapon fire */
+	void StartWeaponFire();
+
+	
+
+	/** [local] stops weapon fire */
+	void StopWeaponFire();
+
+	/** player released start fire action */
+	void OnStopFire();
 
 	APhysicsObject* PhysicsObjectTest;
 	AWeapon* GetWeapon();
@@ -108,8 +122,16 @@ public:
 		void OnRep_CurrentWeapon(AWeapon* LastWeapon);
 
 	void SetCurrentWeapon(class AWeapon* NewWeapon, class AWeapon* LastWeapon = NULL);
+	/** equip weapon */
+	UFUNCTION(reliable, server, WithValidation)
+		void ServerEquipWeapon(class AWeapon* NewWeapon);
 
-	AWeapon* SpawnWeapon(EWeaponType WeaponType);
+	void SpawnWeapon(EWeaponType WeaponType);
+
+	UFUNCTION(reliable, server, WithValidation)
+		void ServerSpawnWeapon(EWeaponType WeaponType);
+
+		bool CanReload();
 
 	UPROPERTY(EditAnywhere)
 		TSubclassOf<class AWeapon> WeaponToSpawn;
@@ -545,6 +567,8 @@ protected:
 	void PlayerCameraRightInput(float Value);
 
 	void UsePressedAction();
+
+	void ReloadPressedAction();
 
 	void JumpPressedAction();
 

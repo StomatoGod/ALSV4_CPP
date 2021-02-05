@@ -2,7 +2,8 @@
 #include "Character/Weapon.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "Kismet/GameplayStatics.h"
-#include "DependencyFix/Public/ImpactEffect.h"
+#include "Character/ImpactEffect.h"
+#include "DrawDebugHelpers.h"
 
 AGun::AGun()
 {
@@ -14,6 +15,8 @@ AGun::AGun()
 
 void AGun::FireWeapon()
 {
+	//UE_LOG(LogTemp, Log, TEXT("AGun CurrentAmmo: %d"), CurrentAmmo);
+	UE_LOG(LogTemp, Log, TEXT("AGun CurrentAmmo: %d"), CurrentAmmoInClip);
 	const int32 RandomSeed = FMath::Rand();
 	FRandomStream WeaponRandomStream(RandomSeed);
 	const float CurrentSpread = GetCurrentSpread();
@@ -25,6 +28,7 @@ void AGun::FireWeapon()
 	const FVector EndTrace = StartTrace + ShootDir * InstantConfig.WeaponRange;
 
 	const FHitResult Impact = WeaponTrace(StartTrace, EndTrace);
+	
 	ProcessInstantHit(Impact, StartTrace, ShootDir, RandomSeed, CurrentSpread);
 
 	CurrentFiringSpread = FMath::Min(InstantConfig.FiringSpreadMax, CurrentFiringSpread + InstantConfig.FiringSpreadIncrement);
@@ -162,6 +166,7 @@ void AGun::ProcessInstantHit_Confirmed(const FHitResult& Impact, const FVector& 
 	// handle damage
 	if (ShouldDealDamage(Impact.GetActor()))
 	{
+		UE_LOG(LogClass, Warning, TEXT("AGun::ShouldDealDamage"));
 		DealDamage(Impact, ShootDir);
 	}
 
@@ -208,6 +213,8 @@ void AGun::DealDamage(const FHitResult& Impact, const FVector& ShootDir)
 	PointDmg.ShotDirection = ShootDir;
 	PointDmg.Damage = InstantConfig.HitDamage;
 
+	UE_LOG(LogClass, Warning, TEXT("AGun::DealDamage"));
+	UE_LOG(LogTemp, Log, TEXT("DealDamage to %s, from %s"), *Impact.GetActor()->GetFName().ToString(), *MyPawn->GetFName().ToString());
 	Impact.GetActor()->TakeDamage(PointDmg.Damage, PointDmg, MyPawn->Controller, this);
 }
 

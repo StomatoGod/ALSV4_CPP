@@ -65,11 +65,6 @@ AWeapon* AALSBaseCharacter::GetWeapon()
 }
 
 
-void AALSBaseCharacter::OnRep_CurrentWeapon(AWeapon* LastWeapon)
-{
-	SetCurrentWeapon(CurrentWeapon, LastWeapon);
-}
-
 void AALSBaseCharacter::SetCurrentWeapon(AWeapon* NewWeapon, AWeapon* LastWeapon)
 {
 	AWeapon* LocalLastWeapon = nullptr;
@@ -95,12 +90,18 @@ void AALSBaseCharacter::SetCurrentWeapon(AWeapon* NewWeapon, AWeapon* LastWeapon
 	{
 		UE_LOG(LogClass, Warning, TEXT("New WEapon Equip! "));
 	}
+
+	if (CurrentWeapon->IsA<ASingleShotTestGun>())
+	{
+		MainAnimInstance->OverlayState = EALSOverlayState::Rifle;
+		
+	}
 	// equip new one
 	if (NewWeapon)
 	{
-		//NewWeapon->SetOwningPawn(this);	// Make sure Weapon's MyPawn is pointing back to us. During replication, we can't guarantee APawn::CurrentWeapon will rep after AWeapon::MyPawn!
+		NewWeapon->SetOwningPawn(this);	// Make sure Weapon's MyPawn is pointing back to us. During replication, we can't guarantee APawn::CurrentWeapon will rep after AWeapon::MyPawn!
 
-		//NewWeapon->OnEquip(LastWeapon);
+		NewWeapon->OnEquip(LastWeapon);
 	}
 }
 
@@ -149,8 +150,10 @@ void AALSBaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 	PlayerInputComponent->BindAction("CameraAction", IE_Pressed, this, &AALSBaseCharacter::CameraPressedAction);
 	PlayerInputComponent->BindAction("CameraAction", IE_Released, this, &AALSBaseCharacter::CameraReleasedAction);
 	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &AALSBaseCharacter::OnFire);
+	PlayerInputComponent->BindAction("Fire", IE_Released, this, &AALSBaseCharacter::OnStopFire);
 	PlayerInputComponent->BindAction("GravityTestAction", IE_Pressed, this, &AALSBaseCharacter::ZeroGravTest);
 	PlayerInputComponent->BindAction("UseAction", IE_Pressed, this, &AALSBaseCharacter::UsePressedAction);
+	PlayerInputComponent->BindAction("Reload", IE_Pressed, this, &AALSBaseCharacter::ReloadPressedAction);
 	//test
 	
 }
@@ -207,6 +210,17 @@ void AALSBaseCharacter::ReplicateHit(float Damage, struct FDamageEvent const& Da
 	LastTakeHitInfo.EnsureReplication();
 
 	LastTakeHitTimeTimeout = TimeoutTime;
+}
+void AALSBaseCharacter::ReloadPressedAction()
+{
+	//AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
+	//if (MyPC && MyPC->IsGameInputAllowed())
+//	{
+		if (CurrentWeapon)
+		{
+			CurrentWeapon->StartReload();
+		}
+	//}
 }
 void AALSBaseCharacter::OnDeath(float KillingDamage, struct FDamageEvent const& DamageEvent, class APawn* PawnInstigator, class AActor* DamageCauser)
 {
@@ -319,9 +333,12 @@ bool AALSBaseCharacter::CanDie(float KillingDamage, FDamageEvent const& DamageEv
 
 float AALSBaseCharacter::TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, class AActor* DamageCauser)
 {
+	UE_LOG(LogTemp, Error, TEXT("BaseCharacter TakeDamage %f"), Damage);
+	UE_LOG(LogTemp, Error, TEXT("BaseCharacter Health %f"), Health);
 	AALSPlayerController* PC = Cast<AALSPlayerController>(Controller);
 	if (PC && PC->HasGodMode())
 	{
+		UE_LOG(LogTemp, Log, TEXT("HasGodMode no damage"));
 		return 0.f;
 	}
 
@@ -337,7 +354,9 @@ float AALSBaseCharacter::TakeDamage(float Damage, struct FDamageEvent const& Dam
 	const float ActualDamage = Super::TakeDamage(Damage, DamageEvent, EventInstigator, DamageCauser);
 	if (ActualDamage > 0.f)
 	{
+		UE_LOG(LogTemp, Error, TEXT("BaseCharacter ActualDamage > 0.f"));
 		Health -= ActualDamage;
+		UE_LOG(LogTemp, Log, TEXT("Health: %f"), Health);
 		if (Health <= 0)
 		{
 			Die(ActualDamage, DamageEvent, EventInstigator, DamageCauser);
@@ -502,6 +521,7 @@ void AALSBaseCharacter::BeginPlay()
 	LastVelocityDirection = GetActorForwardVector();
 	LastMovementInputRotation = TargetRotation;
 	
+	/**
 	if (GetLocalRole() == ROLE_SimulatedProxy)
 	{
 		MainAnimInstance->SetRootMotionMode(ERootMotionMode::IgnoreRootMotion);
@@ -518,7 +538,7 @@ void AALSBaseCharacter::BeginPlay()
 		//GetMesh()->AddForceToAllBodiesBelow(FVector (0.f,-980.f, 0.f),FName(TEXT("Clavicle_r")), true, true);
 
 	}
-	
+	**/
 	CapsuleSlerper->SetWorldLocation(GetCapsuleComponent()->GetComponentLocation());
 	CapsuleSlerper->SetWorldRotation(GetCapsuleComponent()->GetComponentRotation().Quaternion());
 
@@ -788,6 +808,16 @@ void AALSBaseCharacter::SetMovementState(const EALSMovementState NewState)
 		MainAnimInstance->MovementState = MovementState;
 		OnMovementStateChanged(PrevMovementState);
 	}
+}
+
+bool AALSBaseCharacter::CanReload()
+{
+
+	if (MovementState != EALSMovementState::Ragdoll)
+	{
+		return true;
+	}
+	return false;
 }
 
 void AALSBaseCharacter::SetMovementAction(const EALSMovementAction NewAction)
@@ -2097,10 +2127,11 @@ void AALSBaseCharacter::GetControlForwardRightVector(FVector& Forward, FVector& 
 void AALSBaseCharacter::OnFire()
 {
 
-	if (CurrentWeapon)
-	{
-		CurrentWeapon->StartFire();
-	}
+	//AALSPlayerController* MyPC = Cast<AALSPlayerController>(Controller);
+	//if (MyPC && MyPC->IsGameInputAllowed())
+//	{
+	StartWeaponFire();
+//	}
 /**
 TArray<AActor*> IgnoreArray;
 	FCollisionQueryParams CollisionParams;
@@ -2135,6 +2166,33 @@ TArray<AActor*> IgnoreArray;
 	}
 	**/
 }
+void AALSBaseCharacter::OnStopFire()
+{
+	StopWeaponFire();
+}
+void AALSBaseCharacter::StopWeaponFire()
+{
+	if (bWantsToFire)
+	{
+		bWantsToFire = false;
+		if (CurrentWeapon)
+		{
+			CurrentWeapon->StopFire();
+		}
+	}
+}
+void AALSBaseCharacter::StartWeaponFire()
+{
+	if (!bWantsToFire)
+	{
+		bWantsToFire = true;
+		if (CurrentWeapon)
+		{
+			CurrentWeapon->StartFire();
+		}
+	}
+}
+
 
 FVector AALSBaseCharacter::GetPlayerMovementInput() const
 {
@@ -2197,10 +2255,27 @@ void AALSBaseCharacter::EquipWeapon(AWeapon* Weapon)
 		}
 		else
 		{
-			//ServerEquipWeapon(Weapon);
+			ServerEquipWeapon(Weapon);
 		}
 	}
 }
+
+bool AALSBaseCharacter::ServerEquipWeapon_Validate(AWeapon* Weapon)
+{
+	return true;
+}
+
+void AALSBaseCharacter::ServerEquipWeapon_Implementation(AWeapon* Weapon)
+{
+	EquipWeapon(Weapon);
+}
+
+
+void AALSBaseCharacter::OnRep_CurrentWeapon(AWeapon* LastWeapon)
+{
+	SetCurrentWeapon(CurrentWeapon, LastWeapon);
+}
+
 
 bool AALSBaseCharacter::IsTargeting() const
 {
@@ -2233,8 +2308,13 @@ void AALSBaseCharacter::ServerSetTargeting_Implementation(bool bNewTargeting)
 	SetTargeting(bNewTargeting);
 }
 
-AWeapon* AALSBaseCharacter::SpawnWeapon(EWeaponType WeaponType)
+void AALSBaseCharacter::SpawnWeapon(EWeaponType WeaponType)
 {
+	if (GetLocalRole() < ROLE_Authority)
+	{
+		ServerSpawnWeapon(WeaponType);
+	}
+	
 
 	if (WeaponType == EWeaponType::SingleShotTestGun)
 	{
@@ -2246,10 +2326,21 @@ AWeapon* AALSBaseCharacter::SpawnWeapon(EWeaponType WeaponType)
 		TestWeapon->Tags.Add("AssPiss");
 		Arsenal.Add(TestWeapon);
 
-		return TestWeapon;
+		EquipWeapon(TestWeapon);
+		
 	}
-	return nullptr;
+
 }
+
+void AALSBaseCharacter::ServerSpawnWeapon_Implementation(EWeaponType WeaponType)
+{
+	SpawnWeapon(WeaponType);
+}
+bool AALSBaseCharacter::ServerSpawnWeapon_Validate(EWeaponType WeaponType)
+{
+return true;
+}
+
 void AALSBaseCharacter::UsePressedAction()
 {
 	FCollisionQueryParams Params;
@@ -2269,11 +2360,8 @@ void AALSBaseCharacter::UsePressedAction()
 			APhysicsItem* Item = Cast<APhysicsItem>(Hit.GetActor());
 			if (Item->ItemType == EItemType::Weapon)
 			{
-				if (Item->WeaponType == EWeaponType::SingleShotTestGun)
-				{
-					//CurrentWeapon = SpawnWeapon(EWeaponType::SingleShotTestGun);
-					EquipWeapon(SpawnWeapon(EWeaponType::SingleShotTestGun));
-				}
+				SpawnWeapon(Item->WeaponType);
+				
 			}
 			else
 			{

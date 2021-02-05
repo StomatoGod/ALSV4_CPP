@@ -9,6 +9,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Components/AudioComponent.h"
 #include "Character/ALSBaseCharacter.h"
+#include "DrawDebugHelpers.h"
 
 
 //TODO: Create player state. Handle NotifyEquipWeapon, Handle canFire, Handle Can Reload,
@@ -190,32 +191,38 @@ void AWeapon::OnLeaveInventory()
 
 void AWeapon::AttachMeshToPawn()
 {
-	/**
+	
 		if (MyPawn)
 		{
 			// Remove and hide both first and third person meshes
 			DetachMeshFromPawn();
 
 			// For locally controller players we attach both Weapons and let the bOnlyOwnerSee, bOwnerNoSee flags deal with visibility.
-			FName AttachPoint = MyPawn->GetWeaponAttachPoint();
+			FName AttachPoint = FName(TEXT("VB RHS_ik_hand_gun"));
 			if (MyPawn->IsLocallyControlled() == true)
 			{
-				USkeletalMeshComponent* PawnMesh1p = MyPawn->GetSpecifcPawnMesh(true);
-				USkeletalMeshComponent* PawnMesh3p = MyPawn->GetSpecifcPawnMesh(false);
-				Mesh1P->SetHiddenInGame(false);
+				//USkeletalMeshComponent* PawnMesh1p = MyPawn->GetSpecifcPawnMesh(true);
+				//USkeletalMeshComponent* PawnMesh3p = MyPawn->GetSpecifcPawnMesh(false);
+				USkeletalMeshComponent* PawnMesh1p = MyPawn->GetMesh();
+				USkeletalMeshComponent* PawnMesh3p = MyPawn->GetMesh();
+				
+				Mesh1P->SetHiddenInGame(true);
 				Mesh3P->SetHiddenInGame(false);
 				Mesh1P->AttachToComponent(PawnMesh1p, FAttachmentTransformRules::KeepRelativeTransform, AttachPoint);
 				Mesh3P->AttachToComponent(PawnMesh3p, FAttachmentTransformRules::KeepRelativeTransform, AttachPoint);
 			}
 			else
 			{
-				USkeletalMeshComponent* UseWeaponMesh = GetWeaponMesh();
-				USkeletalMeshComponent* UsePawnMesh = MyPawn->GetPawnMesh();
-				UseWeaponMesh->AttachToComponent(UsePawnMesh, FAttachmentTransformRules::KeepRelativeTransform, AttachPoint);
-				UseWeaponMesh->SetHiddenInGame(false);
+				//USkeletalMeshComponent* UseWeaponMesh = GetWeaponMesh();
+				//USkeletalMeshComponent* UsePawnMesh = MyPawn->GetPawnMesh();
+				//UseWeaponMesh->AttachToComponent(UsePawnMesh, FAttachmentTransformRules::KeepRelativeTransform, AttachPoint);
+				//UseWeaponMesh->SetHiddenInGame(false);
+				Mesh3P->SetHiddenInGame(false);
+				USkeletalMeshComponent* PawnMesh3p = MyPawn->GetMesh();
+				Mesh3P->AttachToComponent(PawnMesh3p, FAttachmentTransformRules::KeepRelativeTransform, AttachPoint);
 			}
 		}
-		**/
+		
 }
 
 void AWeapon::DetachMeshFromPawn()
@@ -239,11 +246,12 @@ void AWeapon::StartFire()
 	UE_LOG(LogTemp, Log, TEXT("Weapon StartFire"));
 	if (GetLocalRole() < ROLE_Authority)
 	{
+		
 		ServerStartFire();
 	}
 
 	if (!bWantsToFire)
-	{
+	{	
 		bWantsToFire = true;
 		DetermineWeaponState();
 	}
@@ -265,6 +273,7 @@ void AWeapon::StopFire()
 
 void AWeapon::StartReload(bool bFromReplication)
 {
+	UE_LOG(LogClass, Warning, TEXT(" StartReload"));
 	if (!bFromReplication && GetLocalRole() < ROLE_Authority)
 	{
 		ServerStartReload();
@@ -354,7 +363,7 @@ void AWeapon::ClientStartReload_Implementation()
 
 bool AWeapon::CanFire() const
 {
-
+	UE_LOG(LogTemp, Log, TEXT("AWeapon::CanFire() Called"));
 	bool bCanFire = MyPawn && MyPawn->CanFire();
 	bool bStateOKToFire = ((CurrentState == EWeaponState::Idle) || (CurrentState == EWeaponState::Firing));
 	return ((bCanFire == true) && (bStateOKToFire == true) && (bPendingReload == false));
@@ -362,10 +371,18 @@ bool AWeapon::CanFire() const
 
 bool AWeapon::CanReload() const
 {
-	bool bCanReload = false;
-	//bool bCanReload = (!MyPawn || MyPawn->CanReload());
+	
+	bool bCanReload = (!MyPawn || MyPawn->CanReload());
 	bool bGotAmmo = (CurrentAmmoInClip < WeaponConfig.AmmoPerClip) && (CurrentAmmo - CurrentAmmoInClip > 0 || HasInfiniteClip());
 	bool bStateOKToReload = ((CurrentState == EWeaponState::Idle) || (CurrentState == EWeaponState::Firing));
+	if ((bCanReload == true) && (bGotAmmo == true) && (bStateOKToReload == true))
+	{
+		UE_LOG(LogClass, Warning, TEXT(" CAN RELOAD TRUE"));
+	}
+	else
+	{
+		UE_LOG(LogClass, Error, TEXT(" CAN RELOAD FALSE"));
+	}
 	return ((bCanReload == true) && (bGotAmmo == true) && (bStateOKToReload == true));
 }
 
@@ -583,22 +600,30 @@ void AWeapon::DetermineWeaponState()
 			if (CanReload() == false)
 			{
 				NewState = CurrentState;
+				UE_LOG(LogClass, Warning, TEXT(" AWeapon:DetermineWeaponState NewState = CurrentState, CanReload() = false"));
 			}
 			else
 			{
 				NewState = EWeaponState::Reloading;
+				UE_LOG(LogClass, Warning, TEXT(" AWeapon:DetermineWeaponState NewState = Reloading"));
 			}
 		}
 		else if ((bPendingReload == false) && (bWantsToFire == true) && (CanFire() == true))
 		{
 			NewState = EWeaponState::Firing;
+			UE_LOG(LogClass, Warning, TEXT(" AWeapon:DetermineWeaponState NewState = firing"));
 		}
 	}
 	else if (bPendingEquip)
 	{
 		NewState = EWeaponState::Equipping;
+		UE_LOG(LogClass, Warning, TEXT(" AWeapon:DetermineWeaponState NewState = Equipping"));
 	}
-
+	
+	if (!bIsEquipped)
+	{
+		UE_LOG(LogClass, Warning, TEXT(" AWeapon:DetermineWeaponState Not Equipped"));
+	}
 	SetWeaponState(NewState);
 }
 
@@ -809,6 +834,7 @@ void AWeapon::OnRep_Reload()
 	if (bPendingReload)
 	{
 		StartReload(true);
+		UE_LOG(LogClass, Warning, TEXT(" OnRep_Reload bPendingReload"));
 	}
 	else
 	{
