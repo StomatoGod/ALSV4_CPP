@@ -2,7 +2,9 @@
 #include "Character/Weapon.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "Character/ImpactEffect.h"
+#include "Character/ALSBaseCharacter.h"
 #include "DrawDebugHelpers.h"
 
 AGun::AGun()
@@ -21,14 +23,17 @@ void AGun::FireWeapon()
 	FRandomStream WeaponRandomStream(RandomSeed);
 	const float CurrentSpread = GetCurrentSpread();
 	const float ConeHalfAngle = FMath::DegreesToRadians(CurrentSpread * 0.5f);
-
-	const FVector AimDir = GetAdjustedAim();
-	const FVector StartTrace = GetCameraDamageStartLocation(AimDir);
-	const FVector ShootDir = WeaponRandomStream.VRandCone(AimDir, ConeHalfAngle, ConeHalfAngle);
-	const FVector EndTrace = StartTrace + ShootDir * InstantConfig.WeaponRange;
+	const FVector StartTrace = MyPawn->GetFirstPersonCamera()->GetComponentLocation();
+	const FVector ShootDir = MyPawn->GetFirstPersonCamera()->GetForwardVector();
+	const FVector EndTrace = StartTrace + (ShootDir * InstantConfig.WeaponRange);
+	//const FVector AimDir = GetAdjustedAim();
+	//const FVector StartTrace = GetCameraDamageStartLocation(AimDir);
+	//const FVector ShootDir = WeaponRandomStream.VRandCone(AimDir, ConeHalfAngle, ConeHalfAngle);
+	//const FVector EndTrace = StartTrace + ShootDir * InstantConfig.WeaponRange;
 
 	const FHitResult Impact = WeaponTrace(StartTrace, EndTrace);
 	
+	DrawDebugLine(this->GetWorld(), StartTrace, Impact.Location, FColor::Green, false, 2.f, 0, 10.f);
 	ProcessInstantHit(Impact, StartTrace, ShootDir, RandomSeed, CurrentSpread);
 
 	CurrentFiringSpread = FMath::Min(InstantConfig.FiringSpreadMax, CurrentFiringSpread + InstantConfig.FiringSpreadIncrement);
@@ -46,11 +51,13 @@ void AGun::ServerNotifyHit_Implementation(const FHitResult& Impact, FVector_NetQ
 	// if we have an instigator, calculate dot between the view and the shot
 	if (GetInstigator() && (Impact.GetActor() || Impact.bBlockingHit))
 	{
-		const FVector Origin = GetMuzzleLocation();
-		const FVector ViewDir = (Impact.Location - Origin).GetSafeNormal();
-
+		const FVector Origin = MyPawn->GetFirstPersonCamera()->GetComponentLocation();
+		//const FVector ViewDir = (Impact.Location - Origin).GetSafeNormal();
+		const FVector ViewDir = UKismetMathLibrary::GetDirectionUnitVector(Origin,Impact.Location);
+		DrawDebugLine(this->GetWorld(), Origin, Origin + (MyPawn->GetReplicatedForward() * 1000.f), FColor::Red, false, 2.f, 0, 10.f);
 		// is the angle between the hit and the view within allowed limits (limit + weapon max angle)
-		const float ViewDotHitDir = FVector::DotProduct(GetInstigator()->GetViewRotation().Vector(), ViewDir);
+		//const float ViewDotHitDir = FVector::DotProduct(GetInstigator()->GetViewRotation().Vector(), ViewDir);
+		const float ViewDotHitDir = FVector::DotProduct(MyPawn->GetReplicatedForward(), ViewDir);
 		if (ViewDotHitDir > InstantConfig.AllowedViewDotHitDir - WeaponAngleDot)
 		{
 			if (CurrentState != EWeaponState::Idle)
@@ -101,7 +108,7 @@ void AGun::ServerNotifyHit_Implementation(const FHitResult& Impact, FVector_NetQ
 		}
 		else if (ViewDotHitDir <= InstantConfig.AllowedViewDotHitDir)
 		{
-			UE_LOG(LogClass, Log, TEXT("%s Rejected client side hit of %s (facing too far from the hit direction)"), *GetNameSafe(this), *GetNameSafe(Impact.GetActor()));
+			UE_LOG(LogClass, Log, TEXT("%s Rejected client side hit of %s (facing too far from the hit direction) Dot: %f"), *GetNameSafe(this), *GetNameSafe(Impact.GetActor()), ViewDotHitDir);
 		}
 		else
 		{

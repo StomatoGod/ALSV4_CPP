@@ -50,7 +50,7 @@ AALSBaseCharacter::AALSBaseCharacter(const FObjectInitializer& ObjectInitializer
 	//FirstPersonCameraComponent->SetRelativeLocation(FVector(-39.56f, 1.75f, 64.f)); // Position the camera
 	FirstPersonCameraComponent->bUsePawnControlRotation = false;
 	
-
+	Health = 100.f;
 	bAlwaysRelevant = true;
 }
 
@@ -229,8 +229,8 @@ void AALSBaseCharacter::OnDeath(float KillingDamage, struct FDamageEvent const& 
 		return;
 	}
 
-	SetReplicatingMovement(false);
-	TearOff();
+	//SetReplicatingMovement(false);
+	//TearOff();
 	bIsDying = true;
 
 	if (GetLocalRole() == ROLE_Authority)
@@ -287,8 +287,9 @@ void AALSBaseCharacter::OnDeath(float KillingDamage, struct FDamageEvent const& 
 	//float DeathAnimDuration = PlayAnimMontage(DeathAnim);
 
 	// Ragdoll
-
+	CurrentWeapon->OnCharacterDeath();
 	ReplicatedRagdollStart();
+	
 	
 }
 
@@ -547,7 +548,7 @@ void AALSBaseCharacter::BeginPlay()
 	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 
 	
-	
+	//SpawnWeapon(EWeaponType::SingleShotTestGun);
 }
 
 void AALSBaseCharacter::PreInitializeComponents()
@@ -582,7 +583,37 @@ void AALSBaseCharacter::Tick(float DeltaTime)
 
 	//UE_LOG(LogClass, Warning, TEXT(" GravityDirection: %s"), *GravityDirection.ToString());
 	//DrawDebugLine(this->GetWorld(), GetActorLocation(), GetActorLocation() + GravityDirection * -500.f, FColor::Green, false, .01f, 0, 10.f);
-
+	/**
+	if (CurrentWeapon != nullptr)
+	{
+		if (CurrentWeapon->CorrespondingPhysicsItem != nullptr)
+		{
+			CurrentWeapon->OnCharacterDeath();
+			FVector ItemLocation = CurrentWeapon->CorrespondingPhysicsItem->GetActorLocation();
+			DrawDebugSphere
+			(
+				this->GetWorld(),
+				ItemLocation,
+				10.f,
+				5,
+				FColor::Yellow,
+				false,
+				.02f,
+				0,
+				20.f
+			);
+			DrawDebugLine(this->GetWorld(), GetActorLocation(), ItemLocation, FColor::Green, false, .01f, 0, 10.f);
+		}
+		else
+		{
+			UE_LOG(LogClass, Error, TEXT("CorrespondingPhysicsItem NULL"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogClass, Error, TEXT("CurrentWeapon NULL"));
+	}
+	**/
 	if (MovementState == EALSMovementState::Ragdoll)
 	{
 		GetMesh()->AddForceToAllBodiesBelow(GravityDirection * 980.f, FName(TEXT("Pelvis")), true, true);
@@ -2218,6 +2249,12 @@ void AALSBaseCharacter::PlayerForwardMovementInput(float Value)
 	}
 }
 
+FVector AALSBaseCharacter::GetReplicatedForward()
+{
+	
+		return UKismetMathLibrary::GetForwardVector(ReplicatedControlRotation);
+}
+
 void AALSBaseCharacter::PlayerRightMovementInput(float Value)
 {
 	if (MovementState == EALSMovementState::Grounded || MovementState == EALSMovementState::InAir)
@@ -2308,6 +2345,38 @@ void AALSBaseCharacter::ServerSetTargeting_Implementation(bool bNewTargeting)
 	SetTargeting(bNewTargeting);
 }
 
+void AALSBaseCharacter::SpawnWeaponFromPickup(APhysicsItem* PickedUpItem)
+{
+	if (GetLocalRole() < ROLE_Authority)
+	{
+		ServerSpawnWeaponFromPickup(PickedUpItem);
+	}
+
+	if (PickedUpItem->WeaponType == EWeaponType::SingleShotTestGun)
+	{
+		FActorSpawnParameters SpawnParams;
+		//Spawn param collision does not affect in editor spawning unfortunately.
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		FRotator Rotation = FRotator(0.f, 0.f, 0.f);
+		ASingleShotTestGun* TestWeapon = GetWorld()->SpawnActor<ASingleShotTestGun>(TestWeaponToSpawn, GetActorLocation(), Rotation, SpawnParams);
+		TestWeapon->Tags.Add("AssPiss");
+		TestWeapon->CorrespondingPhysicsItem = PickedUpItem;
+		PickedUpItem->Root->SetVisibility(false, true);
+		Arsenal.Add(TestWeapon);
+
+		EquipWeapon(TestWeapon);
+
+	}
+}
+void AALSBaseCharacter::ServerSpawnWeaponFromPickup_Implementation(APhysicsItem* PickedUpItem)
+{
+	SpawnWeaponFromPickup(PickedUpItem);
+}
+bool AALSBaseCharacter::ServerSpawnWeaponFromPickup_Validate(APhysicsItem* PickedUpItem)
+{
+	return true;
+}
+
 void AALSBaseCharacter::SpawnWeapon(EWeaponType WeaponType)
 {
 	if (GetLocalRole() < ROLE_Authority)
@@ -2315,7 +2384,6 @@ void AALSBaseCharacter::SpawnWeapon(EWeaponType WeaponType)
 		ServerSpawnWeapon(WeaponType);
 	}
 	
-
 	if (WeaponType == EWeaponType::SingleShotTestGun)
 	{
 		FActorSpawnParameters SpawnParams;
@@ -2324,12 +2392,12 @@ void AALSBaseCharacter::SpawnWeapon(EWeaponType WeaponType)
 		FRotator Rotation = FRotator(0.f, 0.f, 0.f);
 		ASingleShotTestGun* TestWeapon = GetWorld()->SpawnActor<ASingleShotTestGun>(TestWeaponToSpawn, GetActorLocation(), Rotation, SpawnParams);
 		TestWeapon->Tags.Add("AssPiss");
+
 		Arsenal.Add(TestWeapon);
 
 		EquipWeapon(TestWeapon);
 		
 	}
-
 }
 
 void AALSBaseCharacter::ServerSpawnWeapon_Implementation(EWeaponType WeaponType)
@@ -2360,8 +2428,9 @@ void AALSBaseCharacter::UsePressedAction()
 			APhysicsItem* Item = Cast<APhysicsItem>(Hit.GetActor());
 			if (Item->ItemType == EItemType::Weapon)
 			{
-				SpawnWeapon(Item->WeaponType);
+				SpawnWeaponFromPickup(Item);
 				
+					
 			}
 			else
 			{

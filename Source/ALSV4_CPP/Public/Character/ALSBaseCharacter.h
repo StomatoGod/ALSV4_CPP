@@ -25,6 +25,7 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnEquipWeapon, AALSBaseCharacter*, AWeapon
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnUnEquipWeapon, AALSBaseCharacter*, AWeapon* /* old */);
 
 class AWeapon;
+class APhysicsItem;
 class ASingleShotTestGun;
 class UTimelineComponent;
 class UAnimInstance;
@@ -70,6 +71,8 @@ public:
 	/** Returns True if the pawn can die in the current state */
 	virtual bool CanDie(float KillingDamage, FDamageEvent const& DamageEvent, AController* Killer, AActor* DamageCauser) const;
 
+
+
 	/**
 	* Kills pawn.  Server/authority only.
 	* @param KillingDamage - Damage amount of the killing blow
@@ -90,7 +93,7 @@ public:
 
 	// Current health of the Pawn
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Replicated, Category = Health)
-		float Health;
+		float Health = 100.f;
 
 	/** [server + local] change targeting state */
 	void SetTargeting(bool bNewTargeting);
@@ -125,6 +128,12 @@ public:
 	/** equip weapon */
 	UFUNCTION(reliable, server, WithValidation)
 		void ServerEquipWeapon(class AWeapon* NewWeapon);
+	
+	void SpawnWeaponFromPickup(APhysicsItem* PickedUpItem);
+	
+	UFUNCTION(reliable, server, WithValidation)
+		void ServerSpawnWeaponFromPickup(APhysicsItem* PickedUpItem);
+
 
 	void SpawnWeapon(EWeaponType WeaponType);
 
@@ -132,6 +141,7 @@ public:
 		void ServerSpawnWeapon(EWeaponType WeaponType);
 
 		bool CanReload();
+
 
 	UPROPERTY(EditAnywhere)
 		TSubclassOf<class AWeapon> WeaponToSpawn;
@@ -477,6 +487,8 @@ public:
 	/** Fighting and stuff **/
 
 	void OnFire();
+
+	FVector GetReplicatedForward();
 
 protected:
 	/** Ragdoll System */

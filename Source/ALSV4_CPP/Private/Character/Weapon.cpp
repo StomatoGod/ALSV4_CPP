@@ -9,6 +9,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Components/AudioComponent.h"
 #include "Character/ALSBaseCharacter.h"
+#include "DependencyFix/Public/PhysicsItem.h"
 #include "DrawDebugHelpers.h"
 
 
@@ -227,13 +228,13 @@ void AWeapon::AttachMeshToPawn()
 
 void AWeapon::DetachMeshFromPawn()
 {
-	/**
+	
 		Mesh1P->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
-		Mesh1P->SetHiddenInGame(true);
+		//Mesh1P->SetHiddenInGame(true);
 
 		Mesh3P->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
-		Mesh3P->SetHiddenInGame(true);
-		**/
+		//Mesh3P->SetHiddenInGame(true);
+		
 }
 
 
@@ -789,6 +790,20 @@ FHitResult AWeapon::WeaponTrace(const FVector& StartTrace, const FVector& EndTra
 	GetWorld()->LineTraceSingleByChannel(Hit, StartTrace, EndTrace, ECC_Visibility, TraceParams);
 
 	return Hit;
+}
+
+void AWeapon::OnCharacterDeath()
+{
+	
+	Mesh1P->SetVisibility(false, true);
+	Mesh3P->SetVisibility(false, true);
+	FVector Location = Mesh3P->GetBoneLocation(FName(TEXT("Root")), EBoneSpaces::WorldSpace);
+	FRotator Rotation = Mesh3P->GetComponentRotation();
+	CorrespondingPhysicsItem->ReplaceDroppedItem(Location, Rotation);
+	DetachMeshFromPawn();
+	Destroy();
+	
+	
 }
 
 void AWeapon::SetOwningPawn(AALSBaseCharacter* NewOwner)

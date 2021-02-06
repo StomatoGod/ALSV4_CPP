@@ -13,6 +13,7 @@ class UAudioComponent;
 class UParticleSystemComponent;
 class UForceFeedbackEffect;
 class USoundCue;
+class APhysicsItem;
 
 namespace EWeaponState
 {
@@ -167,6 +168,7 @@ class ALSV4_CPP_API AWeapon : public AActor
 		void ClientStartReload();
 
 
+		
 	//////////////////////////////////////////////////////////////////////////
 	// Control
 
@@ -534,5 +536,10 @@ protected:
 	FORCEINLINE USkeletalMeshComponent* GetMesh1P() const { return Mesh1P; }
 	/** Returns Mesh3P subobject **/
 	FORCEINLINE USkeletalMeshComponent* GetMesh3P() const { return Mesh3P; }
+
+	public: 
+		APhysicsItem* CorrespondingPhysicsItem;
+
+		void OnCharacterDeath();
 };
 
