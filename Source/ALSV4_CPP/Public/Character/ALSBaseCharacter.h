@@ -65,6 +65,20 @@ class ALSV4_CPP_API AALSBaseCharacter : public ACharacter
 public:
 	AALSBaseCharacter(const FObjectInitializer& ObjectInitializer);
 
+	//Debug: 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Debug)
+		bool DrawDebugStuff = false;
+
+
+
+	//GasSystem: 
+	
+	int32 GetCurrentRoomID();
+	int32 GetPredictedNextRoomID();
+	void SetPredictedRoomID(int32 NewRoomID);
+	void SetCurrentRoomID(int32 NewRoomID);
+	void SetCurrentRoomIDToPredicted();
+	FVecGrav VecGravSample;
 	/** Called on the actor right before replication occurs */
 	virtual void PreReplication(IRepChangedPropertyTracker& ChangedPropertyTracker) override;
 
@@ -72,7 +86,7 @@ public:
 	virtual bool CanDie(float KillingDamage, FDamageEvent const& DamageEvent, AController* Killer, AActor* DamageCauser) const;
 
 
-
+	FVector WindForce = FVector::ZeroVector;
 	/**
 	* Kills pawn.  Server/authority only.
 	* @param KillingDamage - Damage amount of the killing blow
@@ -101,6 +115,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Game|Weapon")
 		bool IsTargeting() const;
 	
+
 	/** current firing state */
 	uint8 bWantsToFire : 1;
 
@@ -631,6 +646,10 @@ protected:
 	/** sets up the replication for taking a hit */
 	void ReplicateHit(float Damage, struct FDamageEvent const& DamageEvent, class APawn* InstigatingPawn, class AActor* DamageCauser, bool bKilled);
 protected:
+//GasMovement System
+	int32 CurrentRoomID;
+	int32 PredictedNextRoomID;
+
 	/* Custom movement component*/
 	UPROPERTY()
 		UALSCharacterMovementComponent* MyCharacterMovementComponent;
@@ -869,6 +888,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "ALS|Ragdoll System")
 	FVector LastRagdollVelocity = FVector::ZeroVector;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Replicated, Category = Health)
+	float MaxStunTimerValue = 4.f;
+
+	float StunTimer = MaxStunTimerValue;
 	UPROPERTY(BlueprintReadOnly, Replicated, Category = "ALS|Ragdoll System")
 	FVector TargetRagdollLocation = FVector::ZeroVector;
 
@@ -917,4 +940,10 @@ protected:
 
 	UFUNCTION(reliable, server, WithValidation)
 		void ServerSetTargeting(bool bNewTargeting);
+
+	UFUNCTION(reliable, server, WithValidation)
+		void ServerTestActionRep();
+
+	void TestActionRep();
+
 };

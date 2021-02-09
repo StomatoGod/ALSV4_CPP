@@ -154,6 +154,7 @@ void AALSBaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 	PlayerInputComponent->BindAction("GravityTestAction", IE_Pressed, this, &AALSBaseCharacter::ZeroGravTest);
 	PlayerInputComponent->BindAction("UseAction", IE_Pressed, this, &AALSBaseCharacter::UsePressedAction);
 	PlayerInputComponent->BindAction("Reload", IE_Pressed, this, &AALSBaseCharacter::ReloadPressedAction);
+	PlayerInputComponent->BindAction("TestAction", IE_Pressed, this, &AALSBaseCharacter::TestActionRep);
 	//test
 	
 }
@@ -416,6 +417,31 @@ void AALSBaseCharacter::PlayHit(float DamageTaken, struct FDamageEvent const& Da
 	}
 }
 
+void AALSBaseCharacter::SetPredictedRoomID(int32 NewRoomID)
+{
+PredictedNextRoomID = NewRoomID;
+}
+
+void AALSBaseCharacter::SetCurrentRoomID(int32 NewRoomID)
+{
+CurrentRoomID = NewRoomID;
+}
+
+void AALSBaseCharacter::SetCurrentRoomIDToPredicted()
+{
+	CurrentRoomID = PredictedNextRoomID;
+}
+
+
+
+int32 AALSBaseCharacter::GetCurrentRoomID()
+{
+return CurrentRoomID;
+}
+int32 AALSBaseCharacter::GetPredictedNextRoomID()
+{
+return PredictedNextRoomID;
+}
 void AALSBaseCharacter::PreReplication(IRepChangedPropertyTracker& ChangedPropertyTracker)
 {
 	Super::PreReplication(ChangedPropertyTracker);
@@ -472,6 +498,8 @@ void AALSBaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+	StunTimer = MaxStunTimerValue
+	;
 	// If we're in networked game, disable curved movement
 	bDisableCurvedMovement = !IsNetMode(ENetMode::NM_Standalone);
 
@@ -616,7 +644,25 @@ void AALSBaseCharacter::Tick(float DeltaTime)
 	**/
 	if (MovementState == EALSMovementState::Ragdoll)
 	{
-		GetMesh()->AddForceToAllBodiesBelow(GravityDirection * 980.f, FName(TEXT("Pelvis")), true, true);
+		//GetMesh()->AddForceToAllBodiesBelow(GravityDirection * 980.f + WindForce, FName(TEXT("Pelvis")), true, true);
+		GetMesh()->AddForceToAllBodiesBelow(WindForce, FName(TEXT("Pelvis")), true, true);
+		if (DrawDebugStuff)
+		{
+			DrawDebugSphere
+			(
+				this->GetWorld(),
+				VecGravSample.SampleLocation,
+				10.f,
+				5,
+				FColor::Yellow,
+				false,
+				.01f,
+				0,
+				20.f
+			);
+			DrawDebugLine(this->GetWorld(), GetActorLocation(), GetActorLocation() + WindForce, FColor::Red, false, .01f, 0, 4.f);
+		}
+		
 	}
 	//if (GetLocalRole() == ROLE_SimulatedProxy)
 	//{
@@ -1272,22 +1318,47 @@ void AALSBaseCharacter::RagdollUpdate(float DeltaTime)
 {
 	// Set the Last Ragdoll Velocity.
 	const FVector NewRagdollVel = GetMesh()->GetPhysicsLinearVelocity(FName(TEXT("root")));
+	float RagdollVelChange = FMath::Abs(LastRagdollVelocity.Size() - NewRagdollVel.Size());
+	if (RagdollVelChange > 1200.f)
+	{
+		StunTimer = 0.f;
+	}
+	/**
 	LastRagdollVelocity = (NewRagdollVel != FVector::ZeroVector || IsLocallyControlled())
 		                      ? NewRagdollVel
 		                      : LastRagdollVelocity / 2;
-
+**/
 	// Use the Ragdoll Velocity to scale the ragdoll's joint strength for physical animation.
-	const float SpringValue = FMath::GetMappedRangeValueClamped({0.0f, 1000.0f}, {0.0f, 25000.0f},
+	
+	float SpringValue = FMath::GetMappedRangeValueClamped({0.0f, 1000.0f}, {0.0f, 2300.f},
 	                                                            LastRagdollVelocity.Size());
+	
+	float Scalar = FMath::Clamp(1.f - (MaxStunTimerValue - StunTimer), 0.f, 1.f);
+	SpringValue = SpringValue * Scalar;
+	
 	GetMesh()->SetAllMotorsAngularDriveParams(SpringValue, 0.0f, 0.0f, false);
+
+	if (StunTimer < MaxStunTimerValue)
+	{
+		StunTimer += DeltaTime;
+		StunTimer = FMath::Clamp(StunTimer, 0.f, MaxStunTimerValue);
+	}
+
+	//UE_LOG(LogClass, Log, TEXT("RagdollUpdate SpringValue: %f"), SpringValue);
+	//UE_LOG(LogClass, Warning, TEXT("RagdollUpdate RagdollVelChange: %f"), RagdollVelChange);
+	UE_LOG(LogClass, Warning, TEXT("RagdollUpdate StunTimer: %f , SpringValue: %f, Scalar: %f"),StunTimer, SpringValue, Scalar);
+	//UE_LOG(LogClass, Log, TEXT("RagdollUpdate Scalar: %f"), Scalar);
 
 	// Disable Gravity if falling faster than -4000 to prevent continual acceleration.
 	// This also prevents the ragdoll from going through the floor.
 	const bool bEnableGrav = LastRagdollVelocity.Z > -4000.0f;
 	GetMesh()->SetEnableGravity(bEnableGrav);
 
+	LastRagdollVelocity = NewRagdollVel;
 	// Update the Actor location to follow the ragdoll.
 	SetActorLocationDuringRagdoll(DeltaTime);
+	
+	
 }
 
 void AALSBaseCharacter::SetActorLocationDuringRagdoll(float DeltaTime)
@@ -2319,6 +2390,30 @@ bool AALSBaseCharacter::IsTargeting() const
 	return bIsTargeting;
 }
 
+void AALSBaseCharacter::TestActionRep()
+{
+	if (GetLocalRole() < ROLE_Authority)
+	{
+		//UE_LOG(LogClass, Warning, TEXT("TestAction Local called "));
+		ServerTestActionRep();
+	}
+	
+}
+void AALSBaseCharacter::ServerTestActionRep_Implementation()
+{
+	UE_LOG(LogClass, Warning, TEXT("TestAction Server called "));
+	//GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Pelivs")), true, true);
+	//TestActionRep();
+	RagdollStart();
+	
+}
+
+bool AALSBaseCharacter::ServerTestActionRep_Validate()
+{	
+	return true;
+}
+
+
 void AALSBaseCharacter::SetTargeting(bool bNewTargeting)
 {
 	bIsTargeting = bNewTargeting;
@@ -2351,22 +2446,28 @@ void AALSBaseCharacter::SpawnWeaponFromPickup(APhysicsItem* PickedUpItem)
 	{
 		ServerSpawnWeaponFromPickup(PickedUpItem);
 	}
+	else
+	{	
+			if (PickedUpItem->WeaponType == EWeaponType::SingleShotTestGun)
+			{
+				FActorSpawnParameters SpawnParams;
+				//Spawn param collision does not affect in editor spawning unfortunately.
+				SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+				FRotator Rotation = FRotator(0.f, 0.f, 0.f);
+				ASingleShotTestGun* TestWeapon = GetWorld()->SpawnActor<ASingleShotTestGun>(TestWeaponToSpawn, GetActorLocation(), Rotation, SpawnParams);
+				TestWeapon->Tags.Add("AssPiss");
+				TestWeapon->CorrespondingPhysicsItem = PickedUpItem;
+				PickedUpItem->Root->SetVisibility(false, true);
+				Arsenal.Add(TestWeapon);
 
-	if (PickedUpItem->WeaponType == EWeaponType::SingleShotTestGun)
-	{
-		FActorSpawnParameters SpawnParams;
-		//Spawn param collision does not affect in editor spawning unfortunately.
-		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-		FRotator Rotation = FRotator(0.f, 0.f, 0.f);
-		ASingleShotTestGun* TestWeapon = GetWorld()->SpawnActor<ASingleShotTestGun>(TestWeaponToSpawn, GetActorLocation(), Rotation, SpawnParams);
-		TestWeapon->Tags.Add("AssPiss");
-		TestWeapon->CorrespondingPhysicsItem = PickedUpItem;
-		PickedUpItem->Root->SetVisibility(false, true);
-		Arsenal.Add(TestWeapon);
+				EquipWeapon(TestWeapon);
 
-		EquipWeapon(TestWeapon);
-
+			}
+		
 	}
+	
+	
+	
 }
 void AALSBaseCharacter::ServerSpawnWeaponFromPickup_Implementation(APhysicsItem* PickedUpItem)
 {
