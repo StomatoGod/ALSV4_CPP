@@ -102,6 +102,8 @@ public:
 	virtual bool ShouldRemainVertical() const override;
 	UPROPERTY(Category = "Character Movement: Walking", EditAnywhere, meta = (ClampMin = "0.0", ClampMax = "90.0", UIMin = "0.0", UIMax = "90.0"))
 		float WalkableFloorAngleOverride;
+	
+		//virtual void ClearAccumulatedForces() override;
 	//virtual void PhysicsRotation(float DeltaTime) override;
 	
 	// End UCharacterMovementComponent overrides

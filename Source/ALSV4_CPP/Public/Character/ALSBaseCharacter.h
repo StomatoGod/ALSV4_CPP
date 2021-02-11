@@ -73,6 +73,7 @@ public:
 
 	//GasSystem: 
 	
+	float BrakingDecelerationFlying;
 	int32 GetCurrentRoomID();
 	int32 GetPredictedNextRoomID();
 	void SetPredictedRoomID(int32 NewRoomID);

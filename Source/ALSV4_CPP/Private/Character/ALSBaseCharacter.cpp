@@ -434,6 +434,8 @@ void AALSBaseCharacter::SetCurrentRoomIDToPredicted()
 
 
 
+
+
 int32 AALSBaseCharacter::GetCurrentRoomID()
 {
 return CurrentRoomID;
@@ -642,6 +644,7 @@ void AALSBaseCharacter::Tick(float DeltaTime)
 		UE_LOG(LogClass, Error, TEXT("CurrentWeapon NULL"));
 	}
 	**/
+	//UE_LOG(LogClass, Warning, TEXT(" ALSBaseCharacter Tick: WindForce: %s"), *WindForce.ToString());
 	if (MovementState == EALSMovementState::Ragdoll)
 	{
 		//GetMesh()->AddForceToAllBodiesBelow(GravityDirection * 980.f + WindForce, FName(TEXT("Pelvis")), true, true);
@@ -663,6 +666,11 @@ void AALSBaseCharacter::Tick(float DeltaTime)
 			DrawDebugLine(this->GetWorld(), GetActorLocation(), GetActorLocation() + WindForce, FColor::Red, false, .01f, 0, 4.f);
 		}
 		
+	}
+	else
+	{
+		
+		GetMyMovementComponent()->AddForce(WindForce);
 	}
 	//if (GetLocalRole() == ROLE_SimulatedProxy)
 	//{
@@ -2338,6 +2346,7 @@ void AALSBaseCharacter::PlayerRightMovementInput(float Value)
 		AddMovementInput(CapsuleSlerper->GetRightVector(), Value);
 		//AddMovementInput(GetActorRightVector(), Value);
 	}
+	
 }
 
 void AALSBaseCharacter::PlayerCameraUpInput(float Value)
@@ -2824,8 +2833,8 @@ void AALSBaseCharacter::ZeroGravTest()
 	
 	GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Thigh_l")), true, true);
 	GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Thigh_r")), true, true);
-	GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Thigh_l")), .4f, true, true);
-	GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Thigh_r")), .4f, true, true);
+	//GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Thigh_l")), .4f, true, true);
+	//GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Thigh_r")), .4f, true, true);
 	//Clavicle
 	/**
 	GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Upperarm_l")), true, true);
@@ -2835,9 +2844,9 @@ void AALSBaseCharacter::ZeroGravTest()
 	**/
 	GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Clavicle_r")), true, true);
 	GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Clavicle_l")), true, true);
-	GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Clavicle_r")), .2f, true, true);
-	GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Clavicle_l")), .2f, true, true);
-	
+	//GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Clavicle_r")), .2f, true, true);
+	//GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Clavicle_l")), .2f, true, true);
+	GetMesh()->SetAllMotorsAngularDriveParams(5000, 3000.f, 0.0f, false);
 
 	
 	// Step 3: Stop any active montages.

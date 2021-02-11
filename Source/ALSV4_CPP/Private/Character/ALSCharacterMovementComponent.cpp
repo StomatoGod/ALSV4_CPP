@@ -421,7 +421,9 @@ void UALSCharacterMovementComponent::PhysFlying(float deltaTime, int32 Iteration
 		}
 
 		const float Friction = 0.5f * GetPhysicsVolume()->FluidFriction;
-		CalcVelocity(deltaTime, Friction, true, BrakingDecelerationFlying);
+		//CalcVelocity(deltaTime, Friction, true, BrakingDecelerationFlying);
+		//NoFriction
+		CalcVelocity(deltaTime, Friction, true, 0.f);
 	}
 
 	Iterations++;
@@ -1382,7 +1384,7 @@ void UALSCharacterMovementComponent::SimulateMovement(float DeltaTime)
 
 	LastUpdateLocation = UpdatedComponent ? UpdatedComponent->GetComponentLocation() : FVector::ZeroVector;
 	LastUpdateRotation = UpdatedComponent ? UpdatedComponent->GetComponentQuat() : FQuat::Identity;
-	//LastUpdateVelocity = Velocity;
+	LastUpdateVelocity = Velocity;
 	//UpdateComponentRotationSmooth(DeltaTime);
 	//UpdateComponentRotation();
 }
@@ -2818,21 +2820,59 @@ void UALSCharacterMovementComponent::CalcVelocity(float DeltaTime, float Frictio
 
 void UALSCharacterMovementComponent::ApplyAccumulatedForces(float DeltaSeconds)
 {
+//How to properly apply forces
+/**
+	enum Enum
+	{
+		eFORCE,				//!< parameter has unit of mass * distance/ time^2, i.e. a force
+		eIMPULSE,			//!< parameter has unit of mass * distance /time
+		eVELOCITY_CHANGE,	//!< parameter has unit of distance / time, i.e. the effect is mass independent: a velocity change.
+		eACCELERATION		//!< parameter has unit of distance/ time^2, i.e. an acceleration. It gets treated just like a force except the mass is not divided out before integration.
+	};
+	**/
+	float ForceMultiplier = DeltaSeconds / .016667;
+	PendingForceToApply *= ForceMultiplier;
 	if ((!PendingImpulseToApply.IsZero() || !PendingForceToApply.IsZero()) && IsMovingOnGround())
 	{
-		const FVector Impulse = PendingImpulseToApply + PendingForceToApply * DeltaSeconds + GetGravity() * DeltaSeconds;
+		//const FVector Impulse = PendingImpulseToApply + PendingForceToApply * DeltaSeconds + GetGravity() * DeltaSeconds;
+		const FVector Impulse = (PendingImpulseToApply + PendingForceToApply) + ((CustomGravityDirection * 980.f) * ForceMultiplier);
 
 		// Check to see if applied momentum is enough to overcome gravity.
-		if ((Impulse | GetCapsuleAxisZ()) > SMALL_NUMBER)
+		if ((Impulse | CustomGravityDirection) < 0.f)
 		{
 			SetMovementMode(MOVE_Falling);
 		}
+		//UE_LOG(LogClass, Warning, TEXT("MovementComponent ApplyAccumulatedForces Impulse gravity dot: %f"), Impulse | CustomGravityDirection);
 	}
-
-	Velocity += PendingImpulseToApply + PendingForceToApply * DeltaSeconds;
+	/**
+	FVector BeforeVel = Velocity;
+	if (MovementMode == MOVE_Walking)
+	{
+		PendingForceToApply *= .5f;
+		if (CharacterOwner->GetLastMovementInputVector().Size() < .01f)
+		{
+		FVector InputDirection = CharacterOwner->GetLastMovementInputVector();
+		InputDirection.Normalize(1.f);
+		FVector ForceDirection = PendingForceToApply.Normalize(1.f);
+			
+			float MoveMentFrictionDot = FVector::DotProduct(QuatYawForward, LastVelocityDirection);
+		}
+	}
+	if (MovementMode == MOVE_Walking && CharacterOwner->GetLastMovementInputVector().Size() < SMALL_NUMBER)
+	{
+		
+	 
+	}
+	**/
+	Velocity += PendingImpulseToApply + PendingForceToApply;
+	//Velocity += PendingImpulseToApply + PendingForceToApply * DeltaSeconds;
+	//UE_LOG(LogClass, Warning, TEXT("PendingImpulseToApply + PendingForceToApply * DeltaSeconds: %s"), *(PendingImpulseToApply + PendingForceToApply * DeltaSeconds).ToString());
+	//UE_LOG(LogClass, Warning, TEXT("MovementComponent ApplyAccumulatedForces Velocity Before: %s, After: %s"), *BeforeVel.ToString(), *Velocity.ToString());
+	//UE_LOG(LogClass, Warning, TEXT("MovementComponent ApplyAccumulatedForces PendingForceToApply: %s"), *PendingForceToApply.ToString());
 
 	PendingImpulseToApply = FVector::ZeroVector;
 	PendingForceToApply = FVector::ZeroVector;
+	//UE_LOG(LogClass, Warning, TEXT("MovementComponent ApplyAccumulatedForces ForceMultiplier: %f"), ForceMultiplier);
 }
 
 bool UALSCharacterMovementComponent::IsWalkable(const FHitResult& Hit) const
@@ -3024,6 +3064,11 @@ bool UALSCharacterMovementComponent::ShouldRemainVertical() const
 {
 	return false;
 }
+
+//void UALSCharacterMovementComponent::ClearAccumulatedForces()
+//{
+
+//}
 
 FVector UALSCharacterMovementComponent::GetGravity() const
 {
