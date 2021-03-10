@@ -648,14 +648,18 @@ void AALSBaseCharacter::Tick(float DeltaTime)
 	if (MovementState == EALSMovementState::Ragdoll)
 	{
 		//GetMesh()->AddForceToAllBodiesBelow(GravityDirection * 980.f + WindForce, FName(TEXT("Pelvis")), true, true);
+		FVector RagdollVelocity = GetMesh()->GetPhysicsLinearVelocity();
 		WindForce = FMath::Lerp(WindForce, NewWindForce, DeltaTime * 2.f);
 		
 		WindForce.X = FMath::Clamp(WindForce.X, -3000.f, 3000.f);
 		WindForce.Y = FMath::Clamp(WindForce.Y, -3000.f, 3000.f);
 		WindForce.Z = FMath::Clamp(WindForce.Z, -3000.f, 3000.f);
-		GetMesh()->AddForceToAllBodiesBelow(WindForce, FName(TEXT("Pelvis")), true, true);
+		float VelocityDot = UKismetMathLibrary::GetDirectionUnitVector(FVector::ZeroVector, FVector::ZeroVector + WindForce) | UKismetMathLibrary::GetDirectionUnitVector(FVector::ZeroVector, FVector::ZeroVector + RagdollVelocity);
 		
-			UE_LOG(LogClass, Warning, TEXT("basecharacter ragdoll velocity = %f"), GetMesh()->ComponentVelocity.Size());
+		GetMesh()->AddForceToAllBodiesBelow(WindForce - (RagdollVelocity * FMath::Clamp(VelocityDot, 0.f, 1.f)), FName(TEXT("Pelvis")), true, true);
+		
+			//UE_LOG(LogClass, Warning, TEXT("basecharacter ragdoll velocity = %f"), GetMesh()->GetPhysicsLinearVelocity().Size());
+			UE_LOG(LogClass, Warning, TEXT("basecharacter ragdoll VelocityDot = %f"), VelocityDot);
 		//UE_LOG(LogClass, Warning, TEXT("basecharacter WindForce = %f"), WindForce.Size());
 		if (DrawDebugStuff)
 		{
