@@ -648,7 +648,15 @@ void AALSBaseCharacter::Tick(float DeltaTime)
 	if (MovementState == EALSMovementState::Ragdoll)
 	{
 		//GetMesh()->AddForceToAllBodiesBelow(GravityDirection * 980.f + WindForce, FName(TEXT("Pelvis")), true, true);
+		WindForce = FMath::Lerp(WindForce, NewWindForce, DeltaTime * 2.f);
+		
+		WindForce.X = FMath::Clamp(WindForce.X, -3000.f, 3000.f);
+		WindForce.Y = FMath::Clamp(WindForce.Y, -3000.f, 3000.f);
+		WindForce.Z = FMath::Clamp(WindForce.Z, -3000.f, 3000.f);
 		GetMesh()->AddForceToAllBodiesBelow(WindForce, FName(TEXT("Pelvis")), true, true);
+		
+			UE_LOG(LogClass, Warning, TEXT("basecharacter ragdoll velocity = %f"), GetMesh()->ComponentVelocity.Size());
+		//UE_LOG(LogClass, Warning, TEXT("basecharacter WindForce = %f"), WindForce.Size());
 		if (DrawDebugStuff)
 		{
 			DrawDebugSphere
@@ -802,6 +810,7 @@ void AALSBaseCharacter::RagdollStart()
 		GetMesh()->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 	}
 	TargetRagdollLocation = GetMesh()->GetSocketLocation(FName(TEXT("Pelvis")));
+	
 	ServerRagdollPull = 0;
 
 	// Step 1: Clear the Character Movement Mode and set the Movement State to Ragdoll
@@ -1354,7 +1363,7 @@ void AALSBaseCharacter::RagdollUpdate(float DeltaTime)
 
 	//UE_LOG(LogClass, Log, TEXT("RagdollUpdate SpringValue: %f"), SpringValue);
 	//UE_LOG(LogClass, Warning, TEXT("RagdollUpdate RagdollVelChange: %f"), RagdollVelChange);
-	UE_LOG(LogClass, Warning, TEXT("RagdollUpdate StunTimer: %f , SpringValue: %f, Scalar: %f"),StunTimer, SpringValue, Scalar);
+	//UE_LOG(LogClass, Warning, TEXT("RagdollUpdate StunTimer: %f , SpringValue: %f, Scalar: %f"),StunTimer, SpringValue, Scalar);
 	//UE_LOG(LogClass, Log, TEXT("RagdollUpdate Scalar: %f"), Scalar);
 
 	// Disable Gravity if falling faster than -4000 to prevent continual acceleration.

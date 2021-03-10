@@ -2830,7 +2830,7 @@ void UALSCharacterMovementComponent::ApplyAccumulatedForces(float DeltaSeconds)
 		eACCELERATION		//!< parameter has unit of distance/ time^2, i.e. an acceleration. It gets treated just like a force except the mass is not divided out before integration.
 	};
 	**/
-	float ForceMultiplier = DeltaSeconds / .016667;
+	const float ForceMultiplier = DeltaSeconds / .016667;
 	PendingForceToApply *= ForceMultiplier;
 	if ((!PendingImpulseToApply.IsZero() || !PendingForceToApply.IsZero()) && IsMovingOnGround())
 	{

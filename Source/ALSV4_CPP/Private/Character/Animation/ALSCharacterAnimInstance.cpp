@@ -501,7 +501,8 @@ void UALSCharacterAnimInstance::SetFootOffsets(float DeltaSeconds, FName EnableF
 		float ImpactPointFloorDistance = FMath::Abs((IKFootFloorLoc - ImpactPoint).Size());
 		CurLocationTarget = (ImpactPoint + ImpactNormal * Config.FootHeight) - (IKFootFloorLoc + (TraceDirection * Config.FootHeight));
 	
-		// Step 1.2: Calculate the Rotation offset by getting the Atan2 of the Impact Normal.
+		// Step 1.2: Calculate the Rotation offset by getting the Atan2 of the Impact Normal 
+		//and then to accomodate different gravity directions RotateAngleAxis the result by the  DotAngle of the character's current up vector and the normal Z up
 		if ((Character->GetActorUpVector() | FVector(0.f,0.f,1.f)) < THRESH_NORMALS_ARE_PARALLEL)
 		{	
 			float Dot = Character->GetActorUpVector() | FVector(0.f, 0.f, 1.f);

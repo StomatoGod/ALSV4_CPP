@@ -86,8 +86,9 @@ public:
 	/** Returns True if the pawn can die in the current state */
 	virtual bool CanDie(float KillingDamage, FDamageEvent const& DamageEvent, AController* Killer, AActor* DamageCauser) const;
 
-
+	FVector NewWindForce = FVector::ZeroVector;
 	FVector WindForce = FVector::ZeroVector;
+	FVector OldWindForce = FVector::ZeroVector;
 	/**
 	* Kills pawn.  Server/authority only.
 	* @param KillingDamage - Damage amount of the killing blow
