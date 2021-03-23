@@ -94,7 +94,7 @@ public:
 	virtual FVector GetLedgeMove(const FVector& OldLocation, const FVector& Delta, const FVector& GravDir) const override;
 	virtual void StartNewPhysics(float deltaTime, int32 Iterations) override;
 	virtual void CalcVelocity(float DeltaTime, float Friction, bool bFluid, float BrakingDeceleration) override;
-	virtual void ApplyAccumulatedForces(float DeltaSeconds) override;
+	
 	virtual bool IsWalkable(const FHitResult& Hit) const override;
 	virtual void ComputeFloorDist(const FVector& CapsuleLocation, float LineDistance, float SweepDistance, FFindFloorResult& OutFloorResult, float SweepRadius, const FHitResult* DownwardSweepResult = NULL) const override;
 	virtual bool IsWithinEdgeTolerance(const FVector& CapsuleLocation, const FVector& TestImpactPoint, const float CapsuleRadius) const override;
@@ -102,11 +102,10 @@ public:
 	virtual bool ShouldRemainVertical() const override;
 	UPROPERTY(Category = "Character Movement: Walking", EditAnywhere, meta = (ClampMin = "0.0", ClampMax = "90.0", UIMin = "0.0", UIMax = "90.0"))
 		float WalkableFloorAngleOverride;
-	
-		//virtual void ClearAccumulatedForces() override;
-	//virtual void PhysicsRotation(float DeltaTime) override;
-	
-	// End UCharacterMovementComponent overrides
+	UPROPERTY(Category = "Character Movement (General Settings)", EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0", UIMin = "0"))
+		float MassForceResistance = .5f;
+	virtual void ApplyAccumulatedForces(float DeltaSeconds) override;
+	virtual void AddForce(FVector Force) override;
 
 	UFUNCTION(Category = "Pawn|Components|CharacterMovement", BlueprintCallable)
 		virtual void SetGravityDirection(FVector NewGravityDirection);
@@ -157,6 +156,7 @@ protected:
 	FVector GetComponentDesiredAxisZ() const;
 
 	void UpdateComponentRotation();
+	//Austin
 	void UpdateComponentRotationSmooth(float Delta);
 	FQuat GetCapsuleRotation() const;
 	FVector GetCapsuleAxisX() const;
@@ -170,7 +170,9 @@ protected:
 
 
 	UPROPERTY()
-		FVector CustomGravityDirection = FVector::ZeroVector;
+		FVector CustomGravityDirection = FVector::DownVector;
+	UPROPERTY()
+		float LocalGravityScale = 0.f;
 
 	//END GRAVITY OVERRIDES
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ***** 

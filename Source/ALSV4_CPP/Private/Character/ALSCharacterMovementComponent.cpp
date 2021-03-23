@@ -2746,7 +2746,7 @@ void UALSCharacterMovementComponent::CalcVelocity(float DeltaTime, float Frictio
 		RequestedAcceleration = RequestedAcceleration.GetClampedToMaxSize(MaxAccel);
 		bZeroRequestedAcceleration = false;
 	}
-
+	//UE_LOG(LogClass, Log, TEXT(" UALSCharacterMovementComponent::CalcVelocity RequestedAcceleration %s "), *RequestedAcceleration.ToString());
 	if (bForceMaxAccel)
 	{
 		// Force acceleration at full speed.
@@ -2762,7 +2762,8 @@ void UALSCharacterMovementComponent::CalcVelocity(float DeltaTime, float Frictio
 
 		AnalogInputModifier = 1.f;
 	}
-
+		//UE_LOG(LogClass, Warning, TEXT("UALSCharacterMovementComponent::CalcVelocity Acceleration = %s"), *Acceleration.ToString());
+		//UE_LOG(LogClass, Warning, TEXT("UALSCharacterMovementComponent::CalcVelocity Velocity = %f"), Velocity.Size());
 	// Path following above didn't care about the analog modifier, but we do for everything else below, so get the fully modified value.
 	// Use max of requested speed and max speed if we modified the speed in ApplyRequestedMove above.
 	MaxSpeed = FMath::Max(RequestedSpeed, MaxSpeed * AnalogInputModifier);
@@ -2830,19 +2831,26 @@ void UALSCharacterMovementComponent::ApplyAccumulatedForces(float DeltaSeconds)
 		eACCELERATION		//!< parameter has unit of distance/ time^2, i.e. an acceleration. It gets treated just like a force except the mass is not divided out before integration.
 	};
 	**/
-	const float ForceMultiplier = DeltaSeconds / .016667;
-	PendingForceToApply *= ForceMultiplier;
+	//const float ForceMultiplier = DeltaSeconds / .016667;
+	//PendingForceToApply *= ForceMultiplier;
 	if ((!PendingImpulseToApply.IsZero() || !PendingForceToApply.IsZero()) && IsMovingOnGround())
 	{
-		//const FVector Impulse = PendingImpulseToApply + PendingForceToApply * DeltaSeconds + GetGravity() * DeltaSeconds;
-		const FVector Impulse = (PendingImpulseToApply + PendingForceToApply) + ((CustomGravityDirection * 980.f) * ForceMultiplier);
-
-		// Check to see if applied momentum is enough to overcome gravity.
-		if ((Impulse | CustomGravityDirection) < 0.f)
+	
+		
+		FVector ForcePlusGrav = PendingImpulseToApply + (PendingForceToApply * DeltaSeconds) + (CustomGravityDirection * 980.f * DeltaSeconds);
+		// check to see if applied momentum is enough to overcome gravity
+		FVector ForcePlusGravDirection = UKismetMathLibrary::GetDirectionUnitVector(FVector::ZeroVector, FVector::ZeroVector + ForcePlusGrav);
+		FVector GravDirectionNormalized = UKismetMathLibrary::GetDirectionUnitVector(FVector::ZeroVector, FVector::ZeroVector + CustomGravityDirection);
+		if (IsMovingOnGround() && (ForcePlusGravDirection | GravDirectionNormalized) < 0.f)
 		{
-			SetMovementMode(MOVE_Falling);
+			//SetMovementMode(MOVE_Falling);
+			//UE_LOG(LogClass, Log, TEXT("MovementComponent ApplyAccumulatedForces We Have Liftoff"));
 		}
-		//UE_LOG(LogClass, Warning, TEXT("MovementComponent ApplyAccumulatedForces Impulse gravity dot: %f"), Impulse | CustomGravityDirection);
+		//UE_LOG(LogClass, Log, TEXT("MovementComponent ApplyAccumulatedForces ForcePlusGrav: %s"), *ForcePlusGrav.ToString());
+		//UE_LOG(LogClass, Log, TEXT("MovementComponent ApplyAccumulatedForces PendingForceToApply: %s"), *PendingForceToApply.ToString());
+		//UE_LOG(LogClass, Log, TEXT("MovementComponent ApplyAccumulatedForces CustomGravityDirection: %s"), *CustomGravityDirection.ToString());
+
+		//UE_LOG(LogClass, Warning, TEXT("MovementComponent ApplyAccumulatedForces Force gravity dot: %f"), (ForcePlusGravDirection | GravDirectionNormalized));
 	}
 	/**
 	FVector BeforeVel = Velocity;
@@ -2864,15 +2872,28 @@ void UALSCharacterMovementComponent::ApplyAccumulatedForces(float DeltaSeconds)
 	 
 	}
 	**/
-	Velocity += PendingImpulseToApply + PendingForceToApply;
+	
+	Velocity += PendingImpulseToApply + (PendingForceToApply * DeltaSeconds);
+	//Velocity += PendingImpulseToApply + (PendingForceToApply * DeltaSeconds);
+	
+	//Velocity += CharacterOwner->GetCapsuleComponent()->GetForwardVector() * 100.f ;
+
 	//Velocity += PendingImpulseToApply + PendingForceToApply * DeltaSeconds;
 	//UE_LOG(LogClass, Warning, TEXT("PendingImpulseToApply + PendingForceToApply * DeltaSeconds: %s"), *(PendingImpulseToApply + PendingForceToApply * DeltaSeconds).ToString());
 	//UE_LOG(LogClass, Warning, TEXT("MovementComponent ApplyAccumulatedForces Velocity Before: %s, After: %s"), *BeforeVel.ToString(), *Velocity.ToString());
-	//UE_LOG(LogClass, Warning, TEXT("MovementComponent ApplyAccumulatedForces PendingForceToApply: %s"), *PendingForceToApply.ToString());
+	//UE_LOG(LogClass, Log, TEXT("MovementComponent ApplyAccumulatedForces CustomGravityDirection: %s"), *CustomGravityDirection.ToString());
 
 	PendingImpulseToApply = FVector::ZeroVector;
 	PendingForceToApply = FVector::ZeroVector;
 	//UE_LOG(LogClass, Warning, TEXT("MovementComponent ApplyAccumulatedForces ForceMultiplier: %f"), ForceMultiplier);
+}
+
+void UALSCharacterMovementComponent::AddForce(FVector Force)
+{
+	if (!Force.IsZero() && (MovementMode != MOVE_None) && IsActive() && HasValidData())
+	{
+			PendingForceToApply += Force * MassForceResistance;
+	}
 }
 
 bool UALSCharacterMovementComponent::IsWalkable(const FHitResult& Hit) const

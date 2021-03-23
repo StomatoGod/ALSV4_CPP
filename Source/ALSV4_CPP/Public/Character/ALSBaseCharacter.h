@@ -66,7 +66,7 @@ public:
 	AALSBaseCharacter(const FObjectInitializer& ObjectInitializer);
 
 	//Debug: 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Debug)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Debug)
 		bool DrawDebugStuff = false;
 
 

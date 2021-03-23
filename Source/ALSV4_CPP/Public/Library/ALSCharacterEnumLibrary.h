@@ -31,7 +31,8 @@ enum class EALSGait : uint8
 {
 	Walking,
 	Running,
-	Sprinting
+	Sprinting, 
+	Sliding
 };
 
 UENUM(BlueprintType)

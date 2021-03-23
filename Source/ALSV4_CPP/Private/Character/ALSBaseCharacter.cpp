@@ -645,45 +645,51 @@ void AALSBaseCharacter::Tick(float DeltaTime)
 	}
 	**/
 	//UE_LOG(LogClass, Warning, TEXT(" ALSBaseCharacter Tick: WindForce: %s"), *WindForce.ToString());
+	WindForce = FMath::Lerp(WindForce, NewWindForce, DeltaTime * 2.f);
+
+	WindForce.X = FMath::Clamp(WindForce.X, -3000.f, 3000.f);
+	WindForce.Y = FMath::Clamp(WindForce.Y, -3000.f, 3000.f);
+	WindForce.Z = FMath::Clamp(WindForce.Z, -3000.f, 3000.f);
+	FVector WindDirection = UKismetMathLibrary::GetDirectionUnitVector(FVector::ZeroVector, FVector::ZeroVector + WindForce);
 	if (MovementState == EALSMovementState::Ragdoll)
-	{
-		//GetMesh()->AddForceToAllBodiesBelow(GravityDirection * 980.f + WindForce, FName(TEXT("Pelvis")), true, true);
-		FVector RagdollVelocity = GetMesh()->GetPhysicsLinearVelocity();
-		WindForce = FMath::Lerp(WindForce, NewWindForce, DeltaTime * 2.f);
-		
-		WindForce.X = FMath::Clamp(WindForce.X, -3000.f, 3000.f);
-		WindForce.Y = FMath::Clamp(WindForce.Y, -3000.f, 3000.f);
-		WindForce.Z = FMath::Clamp(WindForce.Z, -3000.f, 3000.f);
-		float VelocityDot = UKismetMathLibrary::GetDirectionUnitVector(FVector::ZeroVector, FVector::ZeroVector + WindForce) | UKismetMathLibrary::GetDirectionUnitVector(FVector::ZeroVector, FVector::ZeroVector + RagdollVelocity);
-		
-		GetMesh()->AddForceToAllBodiesBelow(WindForce - (RagdollVelocity * FMath::Clamp(VelocityDot, 0.f, 1.f)), FName(TEXT("Pelvis")), true, true);
-		
+	{	
+		float VelocityDot = WindDirection | UKismetMathLibrary::GetDirectionUnitVector(FVector::ZeroVector, FVector::ZeroVector + LastRagdollVelocity);
+		FVector RidingWindForce =   WindForce - (LastRagdollVelocity.Size() * WindDirection * FMath::Clamp(VelocityDot, 0.f, 1.f));
+		GetMesh()->AddForceToAllBodiesBelow(RidingWindForce, FName(TEXT("Pelvis")), true, true);
+		//GetMesh()->AddForceToAllBodiesBelow(ConstantForce - (RagdollVelocity * FMath::Clamp(VelocityDot, 0.f, 1.f)), FName(TEXT("Pelvis")), true, true);
 			//UE_LOG(LogClass, Warning, TEXT("basecharacter ragdoll velocity = %f"), GetMesh()->GetPhysicsLinearVelocity().Size());
-			UE_LOG(LogClass, Warning, TEXT("basecharacter ragdoll VelocityDot = %f"), VelocityDot);
-		//UE_LOG(LogClass, Warning, TEXT("basecharacter WindForce = %f"), WindForce.Size());
-		if (DrawDebugStuff)
-		{
-			DrawDebugSphere
-			(
-				this->GetWorld(),
-				VecGravSample.SampleLocation,
-				10.f,
-				5,
-				FColor::Yellow,
-				false,
-				.01f,
-				0,
-				20.f
-			);
-			DrawDebugLine(this->GetWorld(), GetActorLocation(), GetActorLocation() + WindForce, FColor::Red, false, .01f, 0, 4.f);
-		}
-		
+			//UE_LOG(LogClass, Warning, TEXT("basecharacter ragdoll VelocityDot = %f"), VelocityDot);
+			//UE_LOG(LogClass, Warning, TEXT("basecharacter ragdoll WindForce = %f"), WindForce);
+		//UE_LOG(LogClass, Warning, TEXT("basecharacter WindForce = %f"), WindForce.Size());	
 	}
 	else
 	{
-		
+		FVector PlayerVelocity = GetMyMovementComponent()->Velocity;
+
+
+		float VelocityDot = WindDirection | UKismetMathLibrary::GetDirectionUnitVector(FVector::ZeroVector, FVector::ZeroVector + PlayerVelocity);
+		FVector RidingWindForce = WindForce - (PlayerVelocity.Size() * WindDirection * FMath::Clamp(VelocityDot, 0.f, 1.f));
 		GetMyMovementComponent()->AddForce(WindForce);
 	}
+	if (DrawDebugStuff)
+	{
+		DrawDebugSphere
+		(
+			this->GetWorld(),
+			VecGravSample.SampleLocation,
+			10.f,
+			5,
+			FColor::Yellow,
+			false,
+			.01f,
+			0,
+			20.f
+		);
+		DrawDebugLine(this->GetWorld(), GetActorLocation(), GetActorLocation() + WindForce, FColor::Red, false, .01f, 0, 4.f);
+	}
+	//FVector TestMassWindForce = WindForce / 100.f;
+	 //UE_LOG(LogClass, Warning, TEXT("basecharacter Tick WindForce = %s"), *WindForce.ToString());
+	
 	//if (GetLocalRole() == ROLE_SimulatedProxy)
 	//{
 		//GetMesh()->AddForceToAllBodiesBelow(GravityDirection * 980.f, FName(TEXT("Clavicle_r")), true, true);
@@ -1342,7 +1348,7 @@ void AALSBaseCharacter::RagdollUpdate(float DeltaTime)
 	float RagdollVelChange = FMath::Abs(LastRagdollVelocity.Size() - NewRagdollVel.Size());
 	if (RagdollVelChange > 1200.f)
 	{
-		StunTimer = 0.f;
+		//StunTimer = 0.f;
 	}
 	/**
 	LastRagdollVelocity = (NewRagdollVel != FVector::ZeroVector || IsLocallyControlled())
@@ -1351,8 +1357,7 @@ void AALSBaseCharacter::RagdollUpdate(float DeltaTime)
 **/
 	// Use the Ragdoll Velocity to scale the ragdoll's joint strength for physical animation.
 	
-	float SpringValue = FMath::GetMappedRangeValueClamped({0.0f, 1000.0f}, {0.0f, 2300.f},
-	                                                            LastRagdollVelocity.Size());
+	float SpringValue = FMath::GetMappedRangeValueClamped({0.0f, 1000.0f}, {0.0f, 2300.f}, LastRagdollVelocity.Size());
 	
 	float Scalar = FMath::Clamp(1.f - (MaxStunTimerValue - StunTimer), 0.f, 1.f);
 	SpringValue = SpringValue * Scalar;

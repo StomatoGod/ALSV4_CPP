@@ -34,6 +34,17 @@ void UALSCharacterAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 		return;
 	}
 
+	
+	if (!CharacterInformation.bHasMovementInput)
+	{
+		SlideLerp = FMath::Lerp(SlideLerp, 0.0f, DeltaSeconds);
+		
+	}
+	else
+	{
+		SlideLerp = 2.f;
+	}
+	UE_LOG(LogClass, Log, TEXT("AnimInstance NativeUpdateAnimation SlideLerp: %f"), SlideLerp);
 	// Update rest of character information. Others are reflected into anim bp when they're set inside character class
 	CharacterInformation.Velocity = Character->GetCharacterMovement()->Velocity;
 	CharacterInformation.MovementInput = Character->GetMovementInput();
@@ -611,10 +622,21 @@ void UALSCharacterAnimInstance::UpdateMovementValues(float DeltaSeconds)
 {
 	// Interp and set the Velocity Blend.
 	const FALSVelocityBlend& TargetBlend = CalculateVelocityBlend();
-	VelocityBlend.F = FMath::FInterpTo(VelocityBlend.F, TargetBlend.F, DeltaSeconds, Config.VelocityBlendInterpSpeed);
-	VelocityBlend.B = FMath::FInterpTo(VelocityBlend.B, TargetBlend.B, DeltaSeconds, Config.VelocityBlendInterpSpeed);
-	VelocityBlend.L = FMath::FInterpTo(VelocityBlend.L, TargetBlend.L, DeltaSeconds, Config.VelocityBlendInterpSpeed);
-	VelocityBlend.R = FMath::FInterpTo(VelocityBlend.R, TargetBlend.R, DeltaSeconds, Config.VelocityBlendInterpSpeed);
+	if (CharacterInformation.bHasMovementInput)
+	{
+		VelocityBlend.F = FMath::FInterpTo(VelocityBlend.F, TargetBlend.F, DeltaSeconds, Config.VelocityBlendInterpSpeed);
+		VelocityBlend.B = FMath::FInterpTo(VelocityBlend.B, TargetBlend.B, DeltaSeconds, Config.VelocityBlendInterpSpeed);
+		VelocityBlend.L = FMath::FInterpTo(VelocityBlend.L, TargetBlend.L, DeltaSeconds, Config.VelocityBlendInterpSpeed);
+		VelocityBlend.R = FMath::FInterpTo(VelocityBlend.R, TargetBlend.R, DeltaSeconds, Config.VelocityBlendInterpSpeed);
+	}
+	else
+	{
+		VelocityBlend.F = FMath::FInterpTo(VelocityBlend.F, 0.f, DeltaSeconds, Config.VelocityBlendInterpSpeed);
+		VelocityBlend.B = FMath::FInterpTo(VelocityBlend.B, 0.f, DeltaSeconds, Config.VelocityBlendInterpSpeed);
+		VelocityBlend.L = FMath::FInterpTo(VelocityBlend.L, 0.f, DeltaSeconds, Config.VelocityBlendInterpSpeed);
+		VelocityBlend.R = FMath::FInterpTo(VelocityBlend.R, 0.f, DeltaSeconds, Config.VelocityBlendInterpSpeed);
+	}
+	
 
 	// Set the Diagonal Scale Amount.
 	Grounded.DiagonalScaleAmount = CalculateDiagonalScaleAmount();
@@ -747,10 +769,13 @@ float UALSCharacterAnimInstance::CalculateStandingPlayRate() const
 	// The lerps are determined by the "W_Gait" anim curve that exists on every locomotion cycle so
 	// that the play rate is always in sync with the currently blended animation.
 	// The value is also divided by the Stride Blend and the mesh scale so that the play rate increases as the stride or scale gets smaller
-	const float LerpedSpeed = FMath::Lerp(CharacterInformation.Speed / Config.AnimatedWalkSpeed,
-		CharacterInformation.Speed / Config.AnimatedRunSpeed,
+	float SlideLerpClamped = FMath::Clamp(SlideLerp, 0.f, 1.f);
+	const float LerpedSpeed = FMath::Lerp((CharacterInformation.Speed * SlideLerpClamped) / Config.AnimatedWalkSpeed,
+		(CharacterInformation.Speed * SlideLerpClamped) / Config.AnimatedRunSpeed,
 		GetAnimCurveClamped(FName(TEXT("W_Gait")), -1.0f, 0.0f, 1.0f));
+		
 
+			//UE_LOG(LogClass, Log, TEXT("AnimInstance CalculateStandingPlayRate SlideLerpClamped: %f, CharacterInformation.Speed: %f,"), SlideLerpClamped, CharacterInformation.Speed);
 	const float SprintAffectedSpeed = FMath::Lerp(LerpedSpeed, CharacterInformation.Speed / Config.AnimatedSprintSpeed,
 		GetAnimCurveClamped(FName(TEXT("W_Gait")), -2.0f, 0.0f, 1.0f));
 

@@ -161,6 +161,8 @@ private:
 
 	float CalculateStandingPlayRate() const;
 
+	float SlideLerp = 2.f;
+
 	float CalculateDiagonalScaleAmount() const;
 
 	float CalculateCrouchingPlayRate() const;
