@@ -27,6 +27,7 @@
 #include "DependencyFix/Public/PhysicsItem.h"
 #include "DependencyFix/Public/Library/ItemEnumLibrary.h"
 #include "Character/GravHud.h"
+#include "DependencyFix/Public/RoomDataHelper.h"
 #include "DrawDebugHelpers.h"
 
 
@@ -429,7 +430,7 @@ CurrentRoomID = NewRoomID;
 
 void AALSBaseCharacter::SetCurrentRoomIDToPredicted()
 {
-	CurrentRoomID = PredictedNextRoomID;
+	CurrentRoomID = GridSample.PredictedNextRoomID;
 }
 
 
@@ -442,6 +443,7 @@ return CurrentRoomID;
 }
 int32 AALSBaseCharacter::GetPredictedNextRoomID()
 {
+
 return PredictedNextRoomID;
 }
 void AALSBaseCharacter::PreReplication(IRepChangedPropertyTracker& ChangedPropertyTracker)
@@ -457,6 +459,7 @@ void AALSBaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
+	DOREPLIFETIME(AALSBaseCharacter, PlayerID);
 	DOREPLIFETIME(AALSBaseCharacter, Health);
 	DOREPLIFETIME(AALSBaseCharacter, CurrentWeapon);
 	DOREPLIFETIME(AALSBaseCharacter, TargetRagdollLocation);
@@ -494,6 +497,31 @@ void AALSBaseCharacter::Replicated_PlayMontage_Implementation(UAnimMontage* mont
 	// Roll: Simply play a Root Motion Montage.
 	MainAnimInstance->Montage_Play(montage, track);
 	Server_PlayMontage(montage, track);
+}
+
+void AALSBaseCharacter::ClientCalculateFlow_Implementation(ARoomDataHelper* DataHelper, const TArray<FFloatBool>& AirCurrentData) const
+{
+
+	UE_LOG(LogTemp, Log, TEXT("ClientCalculateFlow_Implementation on %s "), *GetFName().ToString());
+	DataHelper->CaclulateFlowBlendAsync(AirCurrentData);
+	//DataHelper->ReturnAsyncCompressedForces.BindUObject(this, &AALSBaseCharacter::ServerUpdateFlow); //see above in wiki
+	DataHelper->ReturnAsyncCompressedForces.AddDynamic(this, &AALSBaseCharacter::ServerUpdateFlow);
+	
+}
+
+
+void AALSBaseCharacter::ServerUpdateFlow_Implementation(const FCompressedForceArray& OutCompressedForceArray, ARoomDataHelper* BroadcastingDataHelper)
+{
+	//const FVector2D Scale = FVector2D(10.f, 10.f);
+	//GEngine->AddOnScreenDebugMessage(-1, 1.5f, FColor::White, TEXT("Bigger???"), true, Scale);
+	GEngine->AddOnScreenDebugMessage(-10, 20.f, FColor::Green, FString::Printf(TEXT("ServerUpdateFlow_Implementation CALLED!!!!!!!")));
+	UE_LOG(LogTemp, Log, TEXT("ServerUpdateFlow_Implementation CALLED!!!!!!!"));
+	BroadcastingDataHelper->CompressedForceArray = OutCompressedForceArray;
+}
+
+bool AALSBaseCharacter::ServerUpdateFlow_Validate(const FCompressedForceArray& OutCompressedForceArray, ARoomDataHelper* BroadcastingDataHelper)
+{
+	return true;
 }
 
 void AALSBaseCharacter::BeginPlay()
@@ -611,6 +639,17 @@ void AALSBaseCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	if (HasAuthority())
+	{
+		AALSPlayerController* OwnerController = Cast<AALSPlayerController>(this);
+		if (OwnerController != NULL)
+		{
+			
+			//APlayerState* PlayerState = OwnerController->PlayerState;
+			//PlayerID = PlayerState->GetPlayerId();
+		}
+
+	}
 	//UE_LOG(LogClass, Warning, TEXT(" GravityDirection: %s"), *GravityDirection.ToString());
 	//DrawDebugLine(this->GetWorld(), GetActorLocation(), GetActorLocation() + GravityDirection * -500.f, FColor::Green, false, .01f, 0, 10.f);
 	/**
@@ -645,7 +684,7 @@ void AALSBaseCharacter::Tick(float DeltaTime)
 	}
 	**/
 	//UE_LOG(LogClass, Warning, TEXT(" ALSBaseCharacter Tick: WindForce: %s"), *WindForce.ToString());
-	WindForce = FMath::Lerp(WindForce, NewWindForce, DeltaTime * 2.f);
+	WindForce = FMath::Lerp(WindForce, GridSample.Force, DeltaTime * 2.f);
 
 	WindForce.X = FMath::Clamp(WindForce.X, -3000.f, 3000.f);
 	WindForce.Y = FMath::Clamp(WindForce.Y, -3000.f, 3000.f);

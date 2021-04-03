@@ -44,7 +44,7 @@ void UALSCharacterAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	{
 		SlideLerp = 2.f;
 	}
-	UE_LOG(LogClass, Log, TEXT("AnimInstance NativeUpdateAnimation SlideLerp: %f"), SlideLerp);
+	//UE_LOG(LogClass, Log, TEXT("AnimInstance NativeUpdateAnimation SlideLerp: %f"), SlideLerp);
 	// Update rest of character information. Others are reflected into anim bp when they're set inside character class
 	CharacterInformation.Velocity = Character->GetCharacterMovement()->Velocity;
 	CharacterInformation.MovementInput = Character->GetMovementInput();

@@ -31,6 +31,8 @@ class UTimelineComponent;
 class UAnimInstance;
 class UAnimMontage;
 class UALSCharacterAnimInstance;
+class ARoomDataHelper;
+
 enum class EVisibilityBasedAnimTickOption : uint8;
 enum class EWeaponType : uint8;
 
@@ -69,10 +71,23 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Debug)
 		bool DrawDebugStuff = false;
 
+	UPROPERTY(BlueprintReadOnly, Category = "ID", Replicated)
+		uint8 PlayerID;
+		
+	UFUNCTION(Reliable, Client)
+	void ClientCalculateFlow(ARoomDataHelper* DataHelper, const TArray<FFloatBool>& AirCurrentData) const;
 
-
-	//GasSystem: 
 	
+	UFUNCTION(reliable, server, WithValidation)
+		void ServerUpdateFlow(const FCompressedForceArray& OutCompressedForceArray, ARoomDataHelper* BroadcastingDataHelper);
+		
+	//GasSystem: 
+	//UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_LocalForces, Category = "ALS|Essential Information")
+	TArray<FVector> LocalForces; 
+		
+	
+	
+
 	float BrakingDecelerationFlying;
 	int32 GetCurrentRoomID();
 	int32 GetPredictedNextRoomID();
@@ -80,6 +95,7 @@ public:
 	void SetCurrentRoomID(int32 NewRoomID);
 	void SetCurrentRoomIDToPredicted();
 	FVecGrav VecGravSample;
+	FGridSample GridSample;
 	/** Called on the actor right before replication occurs */
 	virtual void PreReplication(IRepChangedPropertyTracker& ChangedPropertyTracker) override;
 
@@ -816,6 +832,8 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "ALS|State Values", ReplicatedUsing = OnRep_RotationMode)
 	EALSRotationMode RotationMode = EALSRotationMode::LookingDirection;
+	
+
 
 	UPROPERTY(BlueprintReadOnly, Category = "ALS|State Values")
 	EALSGait Gait = EALSGait::Walking;

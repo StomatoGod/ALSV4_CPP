@@ -2843,7 +2843,7 @@ void UALSCharacterMovementComponent::ApplyAccumulatedForces(float DeltaSeconds)
 		FVector GravDirectionNormalized = UKismetMathLibrary::GetDirectionUnitVector(FVector::ZeroVector, FVector::ZeroVector + CustomGravityDirection);
 		if (IsMovingOnGround() && (ForcePlusGravDirection | GravDirectionNormalized) < 0.f)
 		{
-			//SetMovementMode(MOVE_Falling);
+			SetMovementMode(MOVE_Falling);
 			//UE_LOG(LogClass, Log, TEXT("MovementComponent ApplyAccumulatedForces We Have Liftoff"));
 		}
 		//UE_LOG(LogClass, Log, TEXT("MovementComponent ApplyAccumulatedForces ForcePlusGrav: %s"), *ForcePlusGrav.ToString());
@@ -2890,7 +2890,7 @@ void UALSCharacterMovementComponent::ApplyAccumulatedForces(float DeltaSeconds)
 
 void UALSCharacterMovementComponent::AddForce(FVector Force)
 {
-	if (!Force.IsZero() && (MovementMode != MOVE_None) && IsActive() && HasValidData())
+	if (!Force.IsZero() && (MovementMode != MOVE_None) && HasValidData())
 	{
 			PendingForceToApply += Force * MassForceResistance;
 	}
