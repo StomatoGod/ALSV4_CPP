@@ -10,6 +10,7 @@
 
 #include "Character/Weapon.h"
 #include "Character/SingleShotTestGun.h"
+#include "Character/WEap_VoodooGun.h"
 #include "Character/ALSPlayerController.h"
 #include "Character/Animation/ALSCharacterAnimInstance.h"
 #include "Library/ALSMathLibrary.h"
@@ -439,12 +440,12 @@ void AALSBaseCharacter::SetCurrentRoomIDToPredicted()
 
 int32 AALSBaseCharacter::GetCurrentRoomID()
 {
-return CurrentRoomID;
+	return CurrentRoomID;
 }
 int32 AALSBaseCharacter::GetPredictedNextRoomID()
 {
 
-return PredictedNextRoomID;
+return GridSample.PredictedNextRoomID;
 }
 void AALSBaseCharacter::PreReplication(IRepChangedPropertyTracker& ChangedPropertyTracker)
 {
@@ -463,7 +464,10 @@ void AALSBaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	DOREPLIFETIME(AALSBaseCharacter, Health);
 	DOREPLIFETIME(AALSBaseCharacter, CurrentWeapon);
 	DOREPLIFETIME(AALSBaseCharacter, TargetRagdollLocation);
-	DOREPLIFETIME(AALSBaseCharacter, ReplicatedQuatYawRotation);
+
+	DOREPLIFETIME_CONDITION(AALSBaseCharacter, Arsenal, COND_OwnerOnly);
+
+	DOREPLIFETIME_CONDITION(AALSBaseCharacter, ReplicatedQuatYawRotation, COND_SkipOwner);
 	DOREPLIFETIME_CONDITION(AALSBaseCharacter, CameraRotation, COND_SkipOwner);
 	DOREPLIFETIME_CONDITION(AALSBaseCharacter, DeltaPitch, COND_SkipOwner);
 	DOREPLIFETIME_CONDITION(AALSBaseCharacter, DeltaYaw, COND_SkipOwner);
@@ -502,10 +506,10 @@ void AALSBaseCharacter::Replicated_PlayMontage_Implementation(UAnimMontage* mont
 void AALSBaseCharacter::ClientCalculateFlow_Implementation(ARoomDataHelper* DataHelper, const TArray<FFloatBool>& AirCurrentData) const
 {
 
-	UE_LOG(LogTemp, Log, TEXT("ClientCalculateFlow_Implementation on %s "), *GetFName().ToString());
+	//UE_LOG(LogTemp, Log, TEXT("ClientCalculateFlow_Implementation on %s "), *GetFName().ToString());
 	DataHelper->CaclulateFlowBlendAsync(AirCurrentData);
 	//DataHelper->ReturnAsyncCompressedForces.BindUObject(this, &AALSBaseCharacter::ServerUpdateFlow); //see above in wiki
-	DataHelper->ReturnAsyncCompressedForces.AddDynamic(this, &AALSBaseCharacter::ServerUpdateFlow);
+	//DataHelper->AsyncCompressedForcesDelegate.AddDynamic(this, &AALSBaseCharacter::ServerUpdateFlow);
 	
 }
 
@@ -708,7 +712,7 @@ void AALSBaseCharacter::Tick(float DeltaTime)
 
 		float VelocityDot = WindDirection | UKismetMathLibrary::GetDirectionUnitVector(FVector::ZeroVector, FVector::ZeroVector + PlayerVelocity);
 		FVector RidingWindForce = WindForce - (PlayerVelocity.Size() * WindDirection * FMath::Clamp(VelocityDot, 0.f, 1.f));
-		GetMyMovementComponent()->AddForce(WindForce);
+		GetMyMovementComponent()->AddForce(RidingWindForce);
 	}
 	if (DrawDebugStuff)
 	{
@@ -2388,7 +2392,7 @@ void AALSBaseCharacter::PlayerForwardMovementInput(float Value)
 FVector AALSBaseCharacter::GetReplicatedForward()
 {
 	
-		return UKismetMathLibrary::GetForwardVector(ReplicatedControlRotation);
+return UKismetMathLibrary::GetForwardVector(ReplicatedControlRotation);
 }
 
 void AALSBaseCharacter::PlayerRightMovementInput(float Value)
@@ -2514,21 +2518,38 @@ void AALSBaseCharacter::SpawnWeaponFromPickup(APhysicsItem* PickedUpItem)
 	}
 	else
 	{	
-			if (PickedUpItem->WeaponType == EWeaponType::SingleShotTestGun)
-			{
-				FActorSpawnParameters SpawnParams;
-				//Spawn param collision does not affect in editor spawning unfortunately.
-				SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-				FRotator Rotation = FRotator(0.f, 0.f, 0.f);
-				ASingleShotTestGun* TestWeapon = GetWorld()->SpawnActor<ASingleShotTestGun>(TestWeaponToSpawn, GetActorLocation(), Rotation, SpawnParams);
-				TestWeapon->Tags.Add("AssPiss");
-				TestWeapon->CorrespondingPhysicsItem = PickedUpItem;
-				PickedUpItem->Root->SetVisibility(false, true);
-				Arsenal.Add(TestWeapon);
+		EWeaponType WeaponType = PickedUpItem->WeaponType;
+		FActorSpawnParameters SpawnParams;
+		FRotator Rotation = FRotator(0.f, 0.f, 0.f);
+		AWeapon* SpawnWeapon = nullptr;
+		switch (WeaponType)
+		{
+		case EWeaponType::SingleShotTestGun:
 
-				EquipWeapon(TestWeapon);
+			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+			SpawnWeapon = GetWorld()->SpawnActor<ASingleShotTestGun>(TestWeaponToSpawn, GetActorLocation(), FRotator::ZeroRotator, SpawnParams);
+			
+			break;
 
-			}
+		case EWeaponType::VoodooGun: 
+
+			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+			SpawnWeapon = GetWorld()->SpawnActor<AWeap_VoodooGun>(VoodooGunToSpawn, GetActorLocation(), FRotator::ZeroRotator, SpawnParams);
+				
+			break;
+		}
+
+		if (!SpawnWeapon->IsValidLowLevel())
+		{
+			UE_LOG(LogClass, Error, TEXT("SpawnWeaponFromPickup weapon is null "));
+			return;
+		}
+		SpawnWeapon->Tags.Add("AssPiss");
+		SpawnWeapon->CorrespondingPhysicsItem = PickedUpItem;
+		PickedUpItem->Root->SetVisibility(false, true);
+		Arsenal.Add(SpawnWeapon);
+		EquipWeapon(SpawnWeapon);
+
 		
 	}
 	
@@ -2593,16 +2614,17 @@ void AALSBaseCharacter::UsePressedAction()
 		{
 			DrawDebugLine(GetWorld(), Start, Hit.Location, FColor::Blue, false, 1.f, 0, 8.f);
 			APhysicsItem* Item = Cast<APhysicsItem>(Hit.GetActor());
-			if (Item->ItemType == EItemType::Weapon)
+			EItemType ItemType = Item->ItemType;
+			switch (ItemType)
 			{
+			case EItemType::Weapon: 
 				SpawnWeaponFromPickup(Item);
-				
-					
+				break;
+			//case EStance::S_Crouching: ...
+				//break;
 			}
-			else
-			{
-				UE_LOG(LogClass, Warning, TEXT("PhysicsItem ItemType Not Set "));
-			}
+			
+			
 			
 		}
 		
@@ -2664,10 +2686,10 @@ void AALSBaseCharacter::SprintPressedAction()
 	GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Upperarm_l")), .3f, true, true);
 	GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Upperarm_r")), .3f, true, true);
 	**/
-	GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Clavicle_r")), true, true);
-	GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Clavicle_l")), true, true);
-	GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Clavicle_r")), .3f, true, true);
-	GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Clavicle_l")), .3f, true, true);
+	//GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Clavicle_r")), true, true);
+	//GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Clavicle_l")), true, true);
+	//GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Clavicle_r")), .3f, true, true);
+	//GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Clavicle_l")), .3f, true, true);
 	//GetMesh()->SetEnableGravity(false);
 
 

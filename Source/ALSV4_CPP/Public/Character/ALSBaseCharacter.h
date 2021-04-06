@@ -182,8 +182,13 @@ public:
 	UPROPERTY(EditAnywhere)
 		TSubclassOf<class AWeapon> TestWeaponToSpawn;
 
-	//UPROPERTY(Transient, ReplicatedUsing = OnRep_CurrentWeapon)
-	TArray<AWeapon*>Arsenal;
+	UPROPERTY(EditAnywhere)
+		TSubclassOf<class AWeapon> VoodooGunToSpawn;
+
+	UPROPERTY(Transient, Replicated)
+	TArray<class AWeapon*>Arsenal;
+
+	
 
 	bool CanFire();
 	

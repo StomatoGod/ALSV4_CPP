@@ -167,7 +167,7 @@ class ALSV4_CPP_API AWeapon : public AActor
 	UFUNCTION(reliable, client)
 		void ClientStartReload();
 
-
+	virtual void SwitchWeaponMode();
 		
 	//////////////////////////////////////////////////////////////////////////
 	// Control

@@ -39,19 +39,19 @@ void AGun::FireWeapon()
 	CurrentFiringSpread = FMath::Min(InstantConfig.FiringSpreadMax, CurrentFiringSpread + InstantConfig.FiringSpreadIncrement);
 }
 
-bool AGun::ServerNotifyHit_Validate(const FHitResult& Impact, FVector_NetQuantizeNormal ShootDir, int32 RandomSeed, float ReticleSpread)
+bool AGun::ServerNotifyHit_Validate(const FHitResult& Impact, FVector_NetQuantizeNormal ShootDir, int32 RandomSeed, float ReticleSpread, const FVector& Origin)
 {
 	return true;
 }
 
-void AGun::ServerNotifyHit_Implementation(const FHitResult& Impact, FVector_NetQuantizeNormal ShootDir, int32 RandomSeed, float ReticleSpread)
+void AGun::ServerNotifyHit_Implementation(const FHitResult& Impact, FVector_NetQuantizeNormal ShootDir, int32 RandomSeed, float ReticleSpread, const FVector& Origin)
 {
 	const float WeaponAngleDot = FMath::Abs(FMath::Sin(ReticleSpread * PI / 180.f));
 
 	// if we have an instigator, calculate dot between the view and the shot
 	if (GetInstigator() && (Impact.GetActor() || Impact.bBlockingHit))
 	{
-		const FVector Origin = MyPawn->GetFirstPersonCamera()->GetComponentLocation();
+		//const FVector Origin = MyPawn->GetFirstPersonCamera()->GetComponentLocation();
 		//const FVector ViewDir = (Impact.Location - Origin).GetSafeNormal();
 		const FVector ViewDir = UKismetMathLibrary::GetDirectionUnitVector(Origin,Impact.Location);
 		DrawDebugLine(this->GetWorld(), Origin, Origin + (MyPawn->GetReplicatedForward() * 1000.f), FColor::Red, false, 2.f, 0, 10.f);
@@ -147,14 +147,14 @@ void AGun::ProcessInstantHit(const FHitResult& Impact, const FVector& Origin, co
 		if (Impact.GetActor() && Impact.GetActor()->GetRemoteRole() == ROLE_Authority)
 		{
 			// notify the server of the hit
-			ServerNotifyHit(Impact, ShootDir, RandomSeed, ReticleSpread);
+			ServerNotifyHit(Impact, ShootDir, RandomSeed, ReticleSpread, Origin);
 		}
 		else if (Impact.GetActor() == NULL)
 		{
 			if (Impact.bBlockingHit)
 			{
 				// notify the server of the hit
-				ServerNotifyHit(Impact, ShootDir, RandomSeed, ReticleSpread);
+				ServerNotifyHit(Impact, ShootDir, RandomSeed, ReticleSpread, Origin);
 			}
 			else
 			{

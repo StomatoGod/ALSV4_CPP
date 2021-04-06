@@ -9,6 +9,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Components/AudioComponent.h"
 #include "Character/ALSBaseCharacter.h"
+#include "DependencyFix/Public/PhysicsObject.h"
 #include "DependencyFix/Public/PhysicsItem.h"
 #include "DrawDebugHelpers.h"
 
@@ -247,7 +248,6 @@ void AWeapon::StartFire()
 	UE_LOG(LogTemp, Log, TEXT("Weapon StartFire"));
 	if (GetLocalRole() < ROLE_Authority)
 	{
-		
 		ServerStartFire();
 	}
 
@@ -571,6 +571,11 @@ void AWeapon::ReloadWeapon()
 	{
 		CurrentAmmo = FMath::Max(CurrentAmmoInClip, CurrentAmmo);
 	}
+}
+
+void AWeapon::SwitchWeaponMode()
+{	
+
 }
 
 void AWeapon::SetWeaponState(EWeaponState::Type NewState)
