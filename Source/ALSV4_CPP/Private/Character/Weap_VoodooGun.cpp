@@ -2,7 +2,7 @@
 
 
 #include "Character/Weap_VoodooGun.h"
-#include "PhysicsObject.h"
+
 
 
 void AWeap_VoodooGun::ToggleEntanglement()
@@ -14,7 +14,7 @@ void AWeap_VoodooGun::FireWeapon()
 {
 
 	bool bIsTargetting = MyPawn->IsTargeting();
-
+VoodooMode = EVoodooMode(uint8(bIsTargetting));
 	
 		const FVector StartTrace = MyPawn->GetFirstPersonCamera()->GetComponentLocation();
 		const FVector ShootDir = MyPawn->GetFirstPersonCamera()->GetForwardVector();
@@ -30,6 +30,10 @@ void AWeap_VoodooGun::FireWeapon()
 				{
 					EntangleObject(HitObject);
 				}
+				else
+				{
+					GravityGunActor.PhysicsObject = Cast<APhysicsObject>(Hit.GetActor());
+				}
 			}
 			
 		}
@@ -42,27 +46,21 @@ void AWeap_VoodooGun::SuckySucky()
 
 }
 
-void AWeap_VoodooGun::HandleEntanglement()
+void AWeap_VoodooGun::HandleGravityGun(float DeltaTime)
 {
-	if (HasValidEntanglement())
+	
+	if (MyPawn->IsTargeting() && GravityGunActor.PhysicsObject->IsValidLowLevelFast())
 	{
-		Cast<APhysicsObject>(EntangledActors[!DominantTangleIndex])->Root->SetAllPhysicsLinearVelocity(EntangledActors[DominantTangleIndex]->GetRootComponent()->GetComponentVelocity(), true);
-		//EntangledActors[!DominantTangleIndex]->GetRootComponent()->Velocity += EntangledActors[DominantTangleIndex]->GetRootComponent()->GetComponentVelocity();
-		//EntangledActors[!DominantTangleIndex]->GetRootComponent()->Velocity = FVector(5000.f, 0.f, 0.f);
-		UE_LOG(LogTemp, Log, TEXT("HandleEntanglement"));
+		FVector DirectionToMe = UKismetMathLibrary::GetDirectionUnitVector(GravityGunActor.PhysicsObject->GetActorLocation(), MyPawn->GetActorLocation());
+		float Distance = GravityGunActor.PhysicsObject->GetDistanceTo(MyPawn);
+		FVector Force = DirectionToMe * 200.f;
+		//GravityGunActor.PhysicsObject->Root->SetAllPhysicsLinearVelocity(SubVelocity + VelocityDifferential, false);
+		GravityGunActor.PhysicsObject->Root->AddForce(Force, NAME_None, true);
 	}
-	else
-	{
-		if (EntangledActors[0] == nullptr)
-		{
-			UE_LOG(LogTemp, Error, TEXT("EntangledActors 0 null"));
-		}
-		if (EntangledActors[1] == nullptr)
-		{
-			UE_LOG(LogTemp, Error, TEXT("EntangledActors 1 null"));
-		}
-	}
-
+}
+void AWeap_VoodooGun::HandleEntanglement(float DeltaTime)
+{
+		CastSkips[!DominantTangleIndex].HandleDirectionalEnergy_Copy(CastSkips[DominantTangleIndex], TanglePairMode, EntanglementRelationship, DeltaTime);
 }
 
 void AWeap_VoodooGun::EntangleObject(AActor* HitObject)
@@ -85,6 +83,56 @@ void AWeap_VoodooGun::EntangleObject(AActor* HitObject)
 
 		UE_LOG(LogTemp, Log, TEXT("EntangleObject"));
 	}
+
+	if (!HasValidEntanglement())
+	{
+		return;
+	}
+	float PhysicsObjectCount = 0.f;
+	float CharacterCount = 0.f;
+	float DomValue = 0.f;
+	for (int32 CurrentIndex = 0; CurrentIndex < EntangledActors.Num(); CurrentIndex++)
+	{
+		if (EntangledActors[CurrentIndex]->IsA<APhysicsObject>())
+		{
+			CastSkips[CurrentIndex].PhysicsObject = Cast<APhysicsObject>(EntangledActors[CurrentIndex]);
+			PhysicsObjectCount += .6f;
+			if (DominantTangleIndex == CurrentIndex)
+			{
+				DomValue += 2.f;
+			}
+		}
+		if (EntangledActors[CurrentIndex]->IsA<AALSBaseCharacter>())
+		{
+			CastSkips[CurrentIndex].Character = Cast<AALSBaseCharacter>(EntangledActors[CurrentIndex]);
+			CharacterCount += 1.f;
+			if (DominantTangleIndex == CurrentIndex)
+			{
+				DomValue += .4f;
+			}
+		}
+	}
+
+	if (CharacterCount + PhysicsObjectCount <= 1.f)
+	{
+		return;
+	}
+
+
+	float PairValue = 0.f;
+	if (CharacterCount > 0.f && PhysicsObjectCount > 0.f)
+	{
+		PairValue += PhysicsObjectCount + CharacterCount + DomValue;
+	}
+	else
+	{
+		PairValue += PhysicsObjectCount + CharacterCount;
+	}
+	uint8 PairEnumValue = FGenericPlatformMath::RoundToInt(PairValue) - 1;
+	
+	TanglePairMode = ETanglePair(PairEnumValue);
+	bEntanglementEnabled = true;
+	
 }
 
 void AWeap_VoodooGun::FlipDominantTangleBuddy()
@@ -114,11 +162,12 @@ void AWeap_VoodooGun::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (bEntanglementEnabled)
+	if (bEntanglementEnabled && HasValidEntanglement())
 	{	
-		HandleEntanglement();
+		HandleEntanglement(DeltaTime);
 	}
-
+	
+	HandleGravityGun(DeltaTime);
 
 
 }
@@ -130,3 +179,6 @@ void AWeap_VoodooGun::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& Ou
 	DOREPLIFETIME_CONDITION(AWeap_VoodooGun, bEntanglementEnabled, COND_SkipOwner);
 	//DOREPLIFETIME_CONDITION(AWeap_VoodooGun, HitNotify, COND_SkipOwner);
 }
+
+
+ALSV4_CPP_API const float AWeap_VoodooGun::BaseBatteryPower(200.f);

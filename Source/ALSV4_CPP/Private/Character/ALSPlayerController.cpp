@@ -47,6 +47,7 @@ void AALSPlayerController::PlayerTick(float DeltaTime)
 		//	UE_LOG(LogClass, Error, TEXT(" RotationInput.YAW: %f"), RotationInput.Yaw);
 	}
 	//PlayerCameraManager->bUseClientSideCameraUpdates = true;
+	//bUseClientSideCameraUpdates = true;
 }
 
 bool AALSPlayerController::HasGodMode() const

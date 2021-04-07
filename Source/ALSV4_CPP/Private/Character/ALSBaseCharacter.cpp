@@ -10,7 +10,7 @@
 
 #include "Character/Weapon.h"
 #include "Character/SingleShotTestGun.h"
-#include "Character/WEap_VoodooGun.h"
+#include "Character/Weap_VoodooGun.h"
 #include "Character/ALSPlayerController.h"
 #include "Character/Animation/ALSCharacterAnimInstance.h"
 #include "Library/ALSMathLibrary.h"
@@ -708,8 +708,6 @@ void AALSBaseCharacter::Tick(float DeltaTime)
 	else
 	{
 		FVector PlayerVelocity = GetMyMovementComponent()->Velocity;
-
-
 		float VelocityDot = WindDirection | UKismetMathLibrary::GetDirectionUnitVector(FVector::ZeroVector, FVector::ZeroVector + PlayerVelocity);
 		FVector RidingWindForce = WindForce - (PlayerVelocity.Size() * WindDirection * FMath::Clamp(VelocityDot, 0.f, 1.f));
 		GetMyMovementComponent()->AddForce(RidingWindForce);
@@ -2487,6 +2485,7 @@ bool AALSBaseCharacter::ServerTestActionRep_Validate()
 void AALSBaseCharacter::SetTargeting(bool bNewTargeting)
 {
 	bIsTargeting = bNewTargeting;
+	
 
 	UE_LOG(LogClass, Warning, TEXT("Targetting "));
 	//if (TargetingSound)
@@ -2705,6 +2704,16 @@ void AALSBaseCharacter::AimPressedAction()
 {
 	// AimAction: Hold "AimAction" to enter the aiming mode, release to revert back the desired rotation mode.
 	SetRotationMode(EALSRotationMode::Aiming);
+
+	AALSPlayerController* MyPC = Cast<AALSPlayerController>(Controller);
+	if (MyPC)
+	{
+		if (Gait == EALSGait::Sprinting)
+		{
+			SetDesiredGait(EALSGait::Running);
+		}
+		SetTargeting(true);
+	}
 }
 
 void AALSBaseCharacter::AimReleasedAction()
@@ -2717,6 +2726,7 @@ void AALSBaseCharacter::AimReleasedAction()
 	{
 		SetRotationMode(EALSRotationMode::LookingDirection);
 	}
+	SetTargeting(false);
 }
 
 void AALSBaseCharacter::CameraPressedAction()
