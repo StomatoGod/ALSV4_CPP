@@ -519,7 +519,7 @@ void UALSCharacterAnimInstance::SetFootOffsets(float DeltaSeconds, FName EnableF
 			float Dot = Character->GetActorUpVector() | FVector(0.f, 0.f, 1.f);
 			float DotAcos = FMath::Acos(Dot);
 			float DotAngle = DotAcos * 57.2958 * -1.f;
-			GEngine->AddOnScreenDebugMessage(-10, 20.f, FColor::Yellow, FString::Printf(TEXT("AnimInstance Dot Angle: %f"), DotAngle));
+			//GEngine->AddOnScreenDebugMessage(-10, 20.f, FColor::Yellow, FString::Printf(TEXT("AnimInstance Dot Angle: %f"), DotAngle));
 			ImpactNormal = ImpactNormal.RotateAngleAxis(DotAngle, FVector(1.f, 0.f, 0.f));
 		}
 		

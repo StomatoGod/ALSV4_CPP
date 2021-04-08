@@ -56,6 +56,17 @@ AALSBaseCharacter::AALSBaseCharacter(const FObjectInitializer& ObjectInitializer
 	bAlwaysRelevant = true;
 }
 
+void AALSBaseCharacter::Gravitate(FVector SourceLocation, FVector HitLocation, float Direction, float Strength)
+{
+	FVector thisLocation = GetActorLocation();
+	float Distance = FMath::Abs((thisLocation - SourceLocation).Size());
+	float ForceScale = FMath::GetMappedRangeValueClamped({ 0.0f, 3000.0f }, { 1.0f, 0.f }, Distance);
+	FVector DirectionTo = UKismetMathLibrary::GetDirectionUnitVector(HitLocation, SourceLocation);
+	FVector Force = Strength * ForceScale * Direction * DirectionTo;
+	GetMyMovementComponent()->AddForce(Force * .05f);
+	UE_LOG(LogTemp, Log, TEXT(" AALSBaseCharacter::Gravitate"));
+}
+
 	///Weapons Weapons etc
 AWeapon* AALSBaseCharacter::GetWeapon()
 {
@@ -830,10 +841,8 @@ void AALSBaseCharacter::Tick(float DeltaTime)
 	else
 	{
 		const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(CapsuleUp, CapsuleSlerper->GetForwardVector());
-		//LocalCorrectedRight = RotationMatrix.Rotator().Vector();
-		//DrawDebugLine(this->GetWorld(), HitStart, HitResult.Location, FColor::Green, false, .5f, 0, 4.f);
 		CapsuleSlerper->SetWorldRotation(FQuat::Slerp(CapsuleSlerper->GetComponentRotation().Quaternion(), RotationMatrix.Rotator().Quaternion(), RotationLerpRate * DeltaTime));
-		//CapsuleSlerper->MoveComponent(FVector::ZeroVector, RotationMatrix.Rotator(), false);
+
 	}
 	//const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(CapsuleUp, CapsuleSlerper->GetForwardVector());
 	//LocalCorrectedRight = RotationMatrix.ToQuat().GetRightVector();
@@ -2487,7 +2496,7 @@ void AALSBaseCharacter::SetTargeting(bool bNewTargeting)
 	bIsTargeting = bNewTargeting;
 	
 
-	UE_LOG(LogClass, Warning, TEXT("Targetting "));
+	
 	//if (TargetingSound)
 	//{
 	//	UGameplayStatics::SpawnSoundAttached(TargetingSound, GetRootComponent());
@@ -2609,6 +2618,10 @@ void AALSBaseCharacter::UsePressedAction()
 	
 	if (Hit.GetActor())
 	{
+		if (IUseInterface* Interface = Cast<IUseInterface>(Hit.GetActor()))
+		{
+			Interface->Use();
+		}
 		if (Hit.GetActor()->IsA<APhysicsItem>())
 		{
 			DrawDebugLine(GetWorld(), Start, Hit.Location, FColor::Blue, false, 1.f, 0, 8.f);

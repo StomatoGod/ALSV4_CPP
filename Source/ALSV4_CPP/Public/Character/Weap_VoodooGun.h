@@ -16,7 +16,7 @@ enum class ETanglePair : uint8
 	CharacterX2,
 	//Make sure the Prop(PhysicsObject) root isnt massless!
 	PropSubCharacter,
-	CharacterSubPRop
+	CharacterSubProp
 };
 
 UENUM(BlueprintType)
@@ -289,6 +289,7 @@ class ALSV4_CPP_API AWeap_VoodooGun : public AWeapon
 	GENERATED_BODY()
 	
 		
+	
 public:
 	virtual void Tick(float DeltaTime) override;
 
@@ -303,6 +304,8 @@ public:
 	
 	uint8 DominantTangleIndex = 0;
 
+
+	
 		AActor* LastEntangledActor = nullptr;
 
 		AActor* OtherActor = nullptr;
@@ -338,13 +341,31 @@ protected:
 	virtual void FireWeapon() override;
 	void SuckySucky();
 	
+	FHitResult GravityTrace(const FVector& StartTrace, const FVector& EndTrace) const;
+	virtual bool IsTraceValid(FHitResult InHit, FVector Start, FVector End) override;
 	void HandleEntanglement(float DeltaTime);
 	void HandleGravityGun(float DeltaTime);
+	
+
+	void HandleGravityGunOnServer(float DeltaTime);
 	void EntangleObject(AActor* HitObject);
 	void FlipDominantTangleBuddy();
 	void ClearEntanglements();
 	bool HasValidEntanglement();
 	virtual void SwitchWeaponMode() override;
-	UPROPERTY(Replicated)
+	UPROPERTY(VisibleAnywhere, Replicated)
 	bool bEntanglementEnabled = false;
+
+
+	float GravityGunStrength = 40000.f;
+
+
+
+	IPhysicsInterface* CachedPhysicsInterface = nullptr;
+	
+	UPROPERTY(VisibleAnywhere, Replicated)
+	AActor* CachedPhysicsActor = nullptr;
+	
+	UPROPERTY(VisibleAnywhere, Replicated)
+	bool bDetectingPhysObject = false;
 };

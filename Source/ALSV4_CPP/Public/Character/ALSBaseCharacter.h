@@ -18,6 +18,7 @@
 #include "DependencyFix/Public/AAADStructLibrary.h"
 #include "DependencyFix/Public/PhysicsObject.h"
 #include "Character/AAADTypes.h"
+#include "DependencyFix/Public/StationControl.h"
 #include "ALSBaseCharacter.generated.h"
 
 
@@ -40,7 +41,7 @@ enum class EWeaponType : uint8;
  * Base character class
  */
 UCLASS(BlueprintType)
-class ALSV4_CPP_API AALSBaseCharacter : public ACharacter
+class ALSV4_CPP_API AALSBaseCharacter : public ACharacter, public IPhysicsInterface
 {
 	GENERATED_BODY()
 
@@ -66,6 +67,8 @@ class ALSV4_CPP_API AALSBaseCharacter : public ACharacter
 
 public:
 	AALSBaseCharacter(const FObjectInitializer& ObjectInitializer);
+
+	virtual void Gravitate(FVector SourceLocation, FVector HitLocation, float Direction, float Strength) override;
 
 	//Debug: 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Debug)
@@ -529,6 +532,10 @@ public:
 	FVector GetReplicatedForward();
 
 protected:
+	
+
+	
+
 	/** Ragdoll System */
 
 	void RagdollUpdate(float DeltaTime);

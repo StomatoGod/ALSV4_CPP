@@ -89,11 +89,10 @@ void AWeapon::Destroyed()
 
 void AWeapon::OnEquip(const AWeapon* LastWeapon)
 {
-	AttachMeshToPawn();
 
+	AttachMeshToPawn();
 	bPendingEquip = true;
 	DetermineWeaponState();
-
 	// Only play animation if last Weapon is valid
 	if (LastWeapon)
 	{
@@ -809,6 +808,11 @@ void AWeapon::OnCharacterDeath()
 	Destroy();
 	
 	
+}
+
+bool AWeapon::IsTraceValid(FHitResult InHit, FVector Start, FVector End)
+{
+	return false;
 }
 
 void AWeapon::SetOwningPawn(AALSBaseCharacter* NewOwner)

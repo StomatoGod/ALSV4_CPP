@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Engine/Canvas.h" // for FCanvasIcon
 #include "GameFramework/Actor.h"
+#include "DependencyFix/Public/PhysicsInterface.h"
+#include "DrawDebugHelpers.h"
 #include "Weapon.generated.h"
 
 class UAnimMontage;
@@ -106,6 +108,7 @@ class ALSV4_CPP_API AWeapon : public AActor
 		EBullet,
 		ERocket,
 		EMax,
+		EBattery
 	};
 
 	/** [server] add ammo */
@@ -279,8 +282,11 @@ class ALSV4_CPP_API AWeapon : public AActor
 	/** gets the duration of equipping Weapon*/
 	float GetEquipDuration() const;
 
+	
+
 protected:
 
+	
 	/** pawn owner */
 	UPROPERTY(Transient, ReplicatedUsing = OnRep_MyPawn)
 		class AALSBaseCharacter* MyPawn;
@@ -541,5 +547,7 @@ protected:
 		APhysicsItem* CorrespondingPhysicsItem;
 
 		void OnCharacterDeath();
+
+		virtual bool IsTraceValid(FHitResult InHit, FVector Start, FVector End);
 };
 
