@@ -533,7 +533,7 @@ public:
 
 protected:
 	
-
+	bool IsUseTraceValid(FHitResult InHit, FVector Start, FVector End);
 	
 
 	/** Ragdoll System */

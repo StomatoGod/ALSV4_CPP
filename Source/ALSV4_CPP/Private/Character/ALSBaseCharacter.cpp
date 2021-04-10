@@ -2605,6 +2605,25 @@ bool AALSBaseCharacter::ServerSpawnWeapon_Validate(EWeaponType WeaponType)
 return true;
 }
 
+bool AALSBaseCharacter::IsUseTraceValid(FHitResult InHit, FVector Start, FVector End)
+{
+
+	if (!InHit.GetActor())
+	{
+		return false;
+	}
+	FCollisionQueryParams TraceParams(SCENE_QUERY_STAT(WeaponTrace), true, GetInstigator());
+	TraceParams.bReturnPhysicalMaterial = false;
+	FHitResult CheckHit(ForceInit);
+	//StaticMap trace channel. See if we are hitting the environment
+	GetWorld()->LineTraceSingleByChannel(CheckHit, Start, End, ECC_GameTraceChannel8, TraceParams);
+
+
+
+	return (CheckHit.Distance > InHit.Distance);
+
+}
+
 void AALSBaseCharacter::UsePressedAction()
 {
 	FCollisionQueryParams Params;
@@ -2613,18 +2632,18 @@ void AALSBaseCharacter::UsePressedAction()
 	FHitResult Hit;
 	FVector Start = FirstPersonCameraComponent->GetComponentLocation();
 	FVector Forward = FirstPersonCameraComponent->GetForwardVector();
-	GetWorld()->LineTraceSingleByChannel(Hit, Start, Start + (Forward * 400.f),
+	GetWorld()->LineTraceSingleByChannel(Hit, Start, Start + (Forward * 300.f),
 		ECC_GameTraceChannel10, Params);
 	
-	if (Hit.GetActor())
+	if (Hit.GetActor() && IsUseTraceValid(Hit, Start, Forward * 300.f))
 	{
 		if (IUseInterface* Interface = Cast<IUseInterface>(Hit.GetActor()))
 		{
 			Interface->Use();
+			
 		}
 		if (Hit.GetActor()->IsA<APhysicsItem>())
 		{
-			DrawDebugLine(GetWorld(), Start, Hit.Location, FColor::Blue, false, 1.f, 0, 8.f);
 			APhysicsItem* Item = Cast<APhysicsItem>(Hit.GetActor());
 			EItemType ItemType = Item->ItemType;
 			switch (ItemType)
@@ -2639,7 +2658,7 @@ void AALSBaseCharacter::UsePressedAction()
 			
 			
 		}
-		
+		DrawDebugLine(GetWorld(), Start, Hit.Location, FColor::Blue, false, 1.f, 0, 8.f);
 	}
 }
 

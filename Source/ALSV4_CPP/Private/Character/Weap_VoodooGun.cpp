@@ -137,32 +137,30 @@ void AWeap_VoodooGun::HandleGravityGunOnServer(float DeltaTime)
 		bDetectingPhysObject = false;
 		return;
 	}
-	else
-	{
+	
 		AActor* HitActor = Hit.GetActor();
 		bDetectingPhysObject = true;
-
+		
+		// ArrayDataA = IfAThenAElseB(ArrayA.GetData(), &EmptyArrayData);
 		if (HitActor == CachedPhysicsActor)
 		{
 
-			if (MyPawn->IsTargeting())
-			{
+			
 				CachedPhysicsInterface->Gravitate(StartTrace + (ShootDir * 100.f), Hit.Location, 1.f, GravityGunStrength);
-			}
+		
 
 		}
 		else
 		{
 			CachedPhysicsActor = HitActor;
 			CachedPhysicsInterface = Cast<IPhysicsInterface>(HitActor);
-			if (MyPawn->IsTargeting())
-			{
+			
 
 				CachedPhysicsInterface->Gravitate(StartTrace + (ShootDir * 100.f), Hit.Location, 1.f, GravityGunStrength);
-			}
+			
 		}
 
-	}
+	
 	/**
 	if (CachedPhysicsActor && MyPawn->IsTargeting() && bDetectingPhysObject)
 	{
