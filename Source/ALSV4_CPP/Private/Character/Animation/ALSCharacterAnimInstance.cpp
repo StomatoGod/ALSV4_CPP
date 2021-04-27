@@ -769,10 +769,17 @@ float UALSCharacterAnimInstance::CalculateStandingPlayRate() const
 	// The lerps are determined by the "W_Gait" anim curve that exists on every locomotion cycle so
 	// that the play rate is always in sync with the currently blended animation.
 	// The value is also divided by the Stride Blend and the mesh scale so that the play rate increases as the stride or scale gets smaller
-	float SlideLerpClamped = FMath::Clamp(SlideLerp, 0.f, 1.f);
-	const float LerpedSpeed = FMath::Lerp((CharacterInformation.Speed * SlideLerpClamped) / Config.AnimatedWalkSpeed,
-		(CharacterInformation.Speed * SlideLerpClamped) / Config.AnimatedRunSpeed,
+	/**
+	* !!!!!!!!!!!!!! difference bewteen standing playrate and movement on floor = shoe squeak intensity & sliding ammount
+	**/
+	const float LerpedSpeed = FMath::Lerp(CharacterInformation.Speed / Config.AnimatedWalkSpeed,
+		CharacterInformation.Speed / Config.AnimatedRunSpeed,
 		GetAnimCurveClamped(FName(TEXT("W_Gait")), -1.0f, 0.0f, 1.0f));
+	
+	//float SlideLerpClamped = FMath::Clamp(SlideLerp, 0.f, 1.f);
+	//const float LerpedSpeed = FMath::Lerp((CharacterInformation.Speed * SlideLerpClamped) / Config.AnimatedWalkSpeed,
+	//	(CharacterInformation.Speed * SlideLerpClamped) / Config.AnimatedRunSpeed,
+	//	GetAnimCurveClamped(FName(TEXT("W_Gait")), -1.0f, 0.0f, 1.0f));
 		
 
 			//UE_LOG(LogClass, Log, TEXT("AnimInstance CalculateStandingPlayRate SlideLerpClamped: %f, CharacterInformation.Speed: %f,"), SlideLerpClamped, CharacterInformation.Speed);

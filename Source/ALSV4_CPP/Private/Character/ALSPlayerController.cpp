@@ -9,6 +9,7 @@
 #include "Character/ALSPlayerController.h"
 #include "Character/ALSCharacter.h"
 #include "Character/ALSPlayerCameraManager.h"
+#include "DependencyFix/Public/UI/AAADHUD.h"
 #include "Character/QuatPlayerCameraManager.h"
 
 void AALSPlayerController::OnRestartPawn(APawn* NewPawn)

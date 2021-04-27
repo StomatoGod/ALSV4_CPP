@@ -15,7 +15,7 @@
 #include "Engine/DataTable.h"
 #include "GameFramework/Character.h"
 #include "Kismet/KismetSystemLibrary.h"
-#include "DependencyFix/Public/AAADStructLibrary.h"
+#include "DependencyFix/Public/Library/AAADStructLibrary.h"
 #include "DependencyFix/Public/PhysicsObject.h"
 #include "Character/AAADTypes.h"
 #include "DependencyFix/Public/StationControl.h"
@@ -68,6 +68,10 @@ class ALSV4_CPP_API AALSBaseCharacter : public ACharacter, public IPhysicsInterf
 public:
 	AALSBaseCharacter(const FObjectInitializer& ObjectInitializer);
 
+
+	void ZeroGravTest();
+	void ReturnToGravity();
+
 	virtual void Gravitate(FVector SourceLocation, FVector HitLocation, float Direction, float Strength) override;
 
 	//Debug: 
@@ -97,6 +101,10 @@ public:
 	void SetPredictedRoomID(int32 NewRoomID);
 	void SetCurrentRoomID(int32 NewRoomID);
 	void SetCurrentRoomIDToPredicted();
+	void RebindPressureReadout(float &NewAddress);
+	float PressurePlaceholder = 1.f;
+	float* ClientCurrentRoomPressurePointer = &PressurePlaceholder;
+	void PassPressureToHud();
 	FVecGrav VecGravSample;
 	FGridSample GridSample;
 	/** Called on the actor right before replication occurs */
@@ -629,6 +637,8 @@ protected:
 
 	void JumpPressedAction();
 
+	void EscMenuPressedAction();
+
 	void JumpReleasedAction();
 
 	void SprintPressedAction();
@@ -678,6 +688,7 @@ protected:
 protected:
 //GasMovement System
 	int32 CurrentRoomID;
+	
 	int32 PredictedNextRoomID;
 
 	/* Custom movement component*/
@@ -828,7 +839,7 @@ protected:
 		FVector LocalCorrectedRight; 
 		FVector LocalCorrectedForward;
 
-		void ZeroGravTest();
+		
 		
 
 	/** State Values */

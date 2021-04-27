@@ -133,7 +133,7 @@ void AWeap_VoodooGun::HandleGravityGunOnServer(float DeltaTime)
 	//DrawDebugLine(this->GetWorld(), StartTrace, EndTrace, FColor::Red, false, 2.f, 0, 10.f);
 	if (!IsTraceValid(Hit, StartTrace, EndTrace))
 	{
-		UE_LOG(LogClass, Warning, TEXT(" IsTraceValid false"));
+		//UE_LOG(LogClass, Warning, TEXT(" IsTraceValid false"));
 		bDetectingPhysObject = false;
 		return;
 	}
@@ -144,20 +144,13 @@ void AWeap_VoodooGun::HandleGravityGunOnServer(float DeltaTime)
 		// ArrayDataA = IfAThenAElseB(ArrayA.GetData(), &EmptyArrayData);
 		if (HitActor == CachedPhysicsActor)
 		{
-
-			
 				CachedPhysicsInterface->Gravitate(StartTrace + (ShootDir * 100.f), Hit.Location, 1.f, GravityGunStrength);
-		
-
 		}
 		else
 		{
 			CachedPhysicsActor = HitActor;
 			CachedPhysicsInterface = Cast<IPhysicsInterface>(HitActor);
-			
-
 				CachedPhysicsInterface->Gravitate(StartTrace + (ShootDir * 100.f), Hit.Location, 1.f, GravityGunStrength);
-			
 		}
 
 	

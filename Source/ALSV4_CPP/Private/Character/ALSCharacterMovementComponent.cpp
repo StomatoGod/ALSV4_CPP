@@ -365,6 +365,7 @@ void UALSCharacterMovementComponent::SetMaxWalkingSpeed(float NewMaxWalkSpeed)
 FVector UALSCharacterMovementComponent::GetGravityDirection(bool bAvoidZeroGravity) const
 {
 	// Gravity direction can be influenced by the custom gravity scale value.
+	
 	if (GravityScale != 0.0f)
 	{
 		if (!CustomGravityDirection.IsZero())
@@ -378,6 +379,7 @@ FVector UALSCharacterMovementComponent::GetGravityDirection(bool bAvoidZeroGravi
 			return FVector(0.0f, 0.0f, ((WorldGravityZ > 0.0f) ? 1.0f : -1.0f) * ((GravityScale > 0.0f) ? 1.0f : -1.0f));
 		}
 	}
+	/**
 	else if (bAvoidZeroGravity)
 	{
 		if (!CustomGravityDirection.IsZero())
@@ -387,13 +389,22 @@ FVector UALSCharacterMovementComponent::GetGravityDirection(bool bAvoidZeroGravi
 
 		return FVector(0.0f, 0.0f, (Super::GetGravityZ() > 0.0f) ? 1.0f : -1.0f);
 	}
-
+	**/
 	return FVector::ZeroVector;
 }
 
 void UALSCharacterMovementComponent::SetGravityDirection(FVector NewGravityDirection)
 {
-
+	if (NewGravityDirection.Size() == 0.f)
+	{
+		AALSBaseCharacter* Character = Cast<AALSBaseCharacter>(CharacterOwner);
+		Character->ZeroGravTest();
+	}
+	else
+	{
+		AALSBaseCharacter* Character = Cast<AALSBaseCharacter>(CharacterOwner);
+		Character->ReturnToGravity();
+	}
 	CustomGravityDirection = NewGravityDirection.GetSafeNormal();
 }
 
@@ -554,6 +565,7 @@ void UALSCharacterMovementComponent::OnMovementModeChanged(EMovementMode Previou
 
 void UALSCharacterMovementComponent::PerformMovement(float DeltaTime)
 {
+	
 	if (!HasValidData())
 	{
 		return;
@@ -565,9 +577,9 @@ void UALSCharacterMovementComponent::PerformMovement(float DeltaTime)
 		return;
 	}
 
-	
+
 		UpdateComponentRotationSmooth(DeltaTime);
-	
+		
 
 	// Force floor update if we've moved outside of CharacterMovement since last update.
 	bForceNextFloorCheck |= (IsMovingOnGround() && UpdatedComponent->GetComponentLocation() != LastUpdateLocation);
@@ -3125,6 +3137,7 @@ void UALSCharacterMovementComponent::UpdateComponentRotationSmooth(float Delta)
 		FQuat StandingTickRotation = FQuat::Slerp(UpdatedComponent->GetComponentQuat(), RotationMatrix.Rotator().Quaternion(), 10.f * Delta);
 		UpdatedComponent->MoveComponent(FVector::ZeroVector, StandingTickRotation.Rotator(), true);
 	
+		
 }
 
 void UALSCharacterMovementComponent::UpdateComponentRotation()

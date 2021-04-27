@@ -28,6 +28,7 @@
 #include "DependencyFix/Public/PhysicsItem.h"
 #include "DependencyFix/Public/Library/ItemEnumLibrary.h"
 #include "Character/GravHud.h"
+#include "DependencyFix/Public/UI/AAADHUD.h"
 #include "DependencyFix/Public/RoomDataHelper.h"
 #include "DrawDebugHelpers.h"
 
@@ -168,6 +169,7 @@ void AALSBaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 	PlayerInputComponent->BindAction("UseAction", IE_Pressed, this, &AALSBaseCharacter::UsePressedAction);
 	PlayerInputComponent->BindAction("Reload", IE_Pressed, this, &AALSBaseCharacter::ReloadPressedAction);
 	PlayerInputComponent->BindAction("TestAction", IE_Pressed, this, &AALSBaseCharacter::TestActionRep);
+	PlayerInputComponent->BindAction("EscMenu", IE_Pressed, this, &AALSBaseCharacter::EscMenuPressedAction);
 	//test
 	
 }
@@ -517,7 +519,7 @@ void AALSBaseCharacter::Replicated_PlayMontage_Implementation(UAnimMontage* mont
 void AALSBaseCharacter::ClientCalculateFlow_Implementation(ARoomDataHelper* DataHelper, const TArray<FFloatBool>& AirCurrentData) const
 {
 
-	//UE_LOG(LogTemp, Log, TEXT("ClientCalculateFlow_Implementation on %s "), *GetFName().ToString());
+	//UE_LOG(LogTemp, Error, TEXT("ClientCalculateFlow_Implementation on %s "), *GetFName().ToString());
 	DataHelper->CaclulateFlowBlendAsync(AirCurrentData);
 	//DataHelper->ReturnAsyncCompressedForces.BindUObject(this, &AALSBaseCharacter::ServerUpdateFlow); //see above in wiki
 	//DataHelper->AsyncCompressedForcesDelegate.AddDynamic(this, &AALSBaseCharacter::ServerUpdateFlow);
@@ -543,8 +545,7 @@ void AALSBaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	StunTimer = MaxStunTimerValue
-	;
+	StunTimer = MaxStunTimerValue;
 	// If we're in networked game, disable curved movement
 	bDisableCurvedMovement = !IsNetMode(ENetMode::NM_Standalone);
 
@@ -595,24 +596,8 @@ void AALSBaseCharacter::BeginPlay()
 	LastVelocityDirection = GetActorForwardVector();
 	LastMovementInputRotation = TargetRotation;
 	
-	/**
-	if (GetLocalRole() == ROLE_SimulatedProxy)
-	{
-		MainAnimInstance->SetRootMotionMode(ERootMotionMode::IgnoreRootMotion);
-		GetMesh()->SetCollisionObjectType(ECC_PhysicsBody);
-		GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-		
-		GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Clavicle_r")), true, true);
-		GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Clavicle_l")), true, true);
-		GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Clavicle_r")), .1f, true, true);
-		GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Clavicle_l")), .1f, true, true);
-		GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Hand_r")), 1.f, true, true);
-		GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Hand_l")), 1.f, true, true);
-		//GetMesh()->SetEnableGravity(false);
-		//GetMesh()->AddForceToAllBodiesBelow(FVector (0.f,-980.f, 0.f),FName(TEXT("Clavicle_r")), true, true);
 
-	}
-	**/
+	
 	CapsuleSlerper->SetWorldLocation(GetCapsuleComponent()->GetComponentLocation());
 	CapsuleSlerper->SetWorldRotation(GetCapsuleComponent()->GetComponentRotation().Quaternion());
 
@@ -622,8 +607,19 @@ void AALSBaseCharacter::BeginPlay()
 
 	
 	//SpawnWeapon(EWeaponType::SingleShotTestGun);
+	
 }
-
+void AALSBaseCharacter::PassPressureToHud()
+{
+	
+	if (IsLocallyControlled())
+	{
+		AALSPlayerController* PC = Cast<AALSPlayerController>(Controller);
+		AAAADHUD* HUD = PC->GetHUD<AAAADHUD>();
+		HUD->CurrentRoomAirPressure = &ClientCurrentRoomPressurePointer;
+		UE_LOG(LogClass, Error, TEXT("PassPressureToHud"));
+	}
+}
 void AALSBaseCharacter::PreInitializeComponents()
 {
 	Super::PreInitializeComponents();
@@ -721,7 +717,11 @@ void AALSBaseCharacter::Tick(float DeltaTime)
 		FVector PlayerVelocity = GetMyMovementComponent()->Velocity;
 		float VelocityDot = WindDirection | UKismetMathLibrary::GetDirectionUnitVector(FVector::ZeroVector, FVector::ZeroVector + PlayerVelocity);
 		FVector RidingWindForce = WindForce - (PlayerVelocity.Size() * WindDirection * FMath::Clamp(VelocityDot, 0.f, 1.f));
+		DrawDebugLine(this->GetWorld(), GetActorLocation(), GridSample.Location, FColor::Red, false, .01f, 0, 4.f);
+		
 		GetMyMovementComponent()->AddForce(RidingWindForce);
+
+		DrawDebugDirectionalArrow(GetWorld(), GridSample.Location, GridSample.Location + (RidingWindForce.Normalize() * 100.f), 50.f, FColor::Purple, false, .25f, 0, 5.f);
 	}
 	if (DrawDebugStuff)
 	{
@@ -785,7 +785,7 @@ void AALSBaseCharacter::Tick(float DeltaTime)
 	}
 	**/
 	//GetMesh()->GetPhysicsAsset()->gravitydire
-	CapsuleSlerper->SetWorldLocation(GetCapsuleComponent()->GetComponentLocation());
+	
 	//CapsuleSlerper->SetWorldRotation(GetCapsuleComponent()->GetComponentRotation().Quaternion());
 	
 	
@@ -822,8 +822,10 @@ void AALSBaseCharacter::Tick(float DeltaTime)
 	DrawDebugSpheres();
 	FVector CapsuleForward = GetCapsuleComponent()->GetForwardVector();
 	FVector CapsuleUp = GetCapsuleComponent()->GetUpVector();
-	FVector Start = GetCapsuleComponent()->GetComponentLocation() + (CapsuleForward * 20) + (CapsuleUp * 50);
-	FVector End = GetCapsuleComponent()->GetComponentLocation() + (CapsuleForward * 70) + (CapsuleUp * 50);
+	//FVector Start = GetCapsuleComponent()->GetComponentLocation() + (CapsuleForward * 20) + (CapsuleUp * 50);
+	//FVector End = GetCapsuleComponent()->GetComponentLocation() + (CapsuleForward * 70) + (CapsuleUp * 50);
+	//FVector CapsuleLocationMinusUp = 
+	CapsuleSlerper->SetWorldLocation(GetCapsuleComponent()->GetComponentLocation());
 	//DrawDebugLine(this->GetWorld(), Start, End, FColor::Green, false, .1f, 0, 4.f);
 
 	
@@ -2699,6 +2701,14 @@ void AALSBaseCharacter::JumpPressedAction()
 	}
 }
 
+void AALSBaseCharacter::EscMenuPressedAction()
+{
+	AALSPlayerController* PC = Cast<AALSPlayerController>(Controller);
+	AAAADHUD* HUD = PC->GetHUD<AAAADHUD>();
+	HUD->ToggleEscMenu();
+
+}
+
 void AALSBaseCharacter::JumpReleasedAction()
 {
 	StopJumping();
@@ -2936,16 +2946,27 @@ void AALSBaseCharacter::OnRep_OverlayState(EALSOverlayState PrevOverlayState)
 	OnOverlayStateChanged(PrevOverlayState);
 }
 
+void AALSBaseCharacter::ReturnToGravity()
+{
+	if (GetCharacterMovement()->MovementMode == EMovementMode::MOVE_Flying)
+	{
+		GetMyMovementComponent()->ForceZeroG = false;
+		GetCharacterMovement()->SetMovementMode(MOVE_Falling);
+		SetMovementState(EALSMovementState::Grounded);
+		UE_LOG(LogTemp, Log, TEXT("ReturnToGravity"));
+	}
+	
+}
 void AALSBaseCharacter::ZeroGravTest()
 {
-	
+	//UE_LOG(LogTemp, Log, TEXT("ZeroGravTest"));
 	GetMyMovementComponent()->ForceZeroG = true;
 	GetCharacterMovement()->SetMovementMode(MOVE_Flying);
 	SetMovementState(EALSMovementState::InAir);
-
+	
 	
 
-	
+	/**
 	//GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	GetMesh()->SetCollisionObjectType(ECC_PhysicsBody);
 	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
@@ -2954,24 +2975,14 @@ void AALSBaseCharacter::ZeroGravTest()
 	
 	GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Thigh_l")), true, true);
 	GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Thigh_r")), true, true);
-	//GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Thigh_l")), .4f, true, true);
-	//GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Thigh_r")), .4f, true, true);
-	//Clavicle
-	/**
-	GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Upperarm_l")), true, true);
-	GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Upperarm_r")), true, true);
-	GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Upperarm_l")), .2f, true, true);
-	GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Upperarm_r")), .2f, true, true);
-	**/
+	
 	GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Clavicle_r")), true, true);
 	GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Clavicle_l")), true, true);
-	//GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Clavicle_r")), .2f, true, true);
-	//GetMesh()->SetAllBodiesBelowPhysicsBlendWeight(FName(TEXT("Clavicle_l")), .2f, true, true);
+	
 	GetMesh()->SetAllMotorsAngularDriveParams(5000, 3000.f, 0.0f, false);
 
 	
-	// Step 3: Stop any active montages.
-	//MainAnimInstance->Montage_Stop(0.2f);
+	**/
 }
 
 void AALSBaseCharacter::UpdateDeltaPitch()
