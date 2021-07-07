@@ -47,15 +47,77 @@ AALSBaseCharacter::AALSBaseCharacter(const FObjectInitializer& ObjectInitializer
 	bReplicates = true;
 	SetReplicatingMovement(true);
 
-	CapsuleSlerper = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Slerper"));
+	CameraPoll = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Slerper"));
+	CapsuleComponent = GetCapsuleComponent();
 	FirstPersonCameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
-	FirstPersonCameraComponent->SetupAttachment(CapsuleSlerper);
+	FirstPersonCameraComponent->SetupAttachment(CameraPoll);
 	//FirstPersonCameraComponent->SetRelativeLocation(FVector(-39.56f, 1.75f, 64.f)); // Position the camera
 	FirstPersonCameraComponent->bUsePawnControlRotation = false;
 	
 	Health = 100.f;
 	bAlwaysRelevant = true;
 }
+
+void AALSBaseCharacter::UpdateCameraRotation(FRotator& RotationOffset, FRotator& OldOffsetAndOutControlRot, float DeltaTime)
+{
+	FVector PreCameraForward = FirstPersonCameraComponent->GetForwardVector();
+	
+	FVector CapsuleUp = CapsuleComponent->GetUpVector();
+	FVector OldPollUp = CapsuleComponent->GetUpVector(); 
+	CameraPoll->SetWorldLocation(CapsuleComponent->GetComponentLocation());
+	FRotator DeltaRotation = RotationOffset - OldOffsetAndOutControlRot;
+	float NewCameraPitch = RotationOffset.Pitch;
+	FQuat DeltaQuatYaw = FRotator(0.f, DeltaRotation.Yaw, 0.f).Quaternion();
+
+	if ((CapsuleUp | CameraPoll->GetUpVector()) >= THRESH_NORMALS_ARE_PARALLEL)
+	{
+		FirstPersonCameraComponent->SetRelativeRotation(FRotator(NewCameraPitch, 0.f, 0.f));
+		CameraPoll->AddLocalRotation(DeltaQuatYaw);
+	}
+	else if (IsTargeting() )
+	{
+		const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(CapsuleUp, CameraPoll->GetForwardVector());
+		CameraPoll->SetWorldRotation(FQuat::Slerp(CameraPoll->GetComponentRotation().Quaternion(), RotationMatrix.Rotator().Quaternion(), RotationLerpRate * DeltaTime));
+
+		//compensate for changes in camera aim direction when traversing different gravity directions
+		//correct the yaw orientation before sampling the change in pitch. This will allow the angle measurement between the two camera 
+		// unit vectors to be be purely constructed of pitch difference.
+		const FMatrix RotationMatrixYawCorrection = FRotationMatrix::MakeFromZX(CameraPoll->GetUpVector(), PreCameraForward);
+		CameraPoll->SetWorldRotation(RotationMatrixYawCorrection.Rotator());
+
+		//now we sample and correct pitch
+		FVector AfterCameraForward = FirstPersonCameraComponent->GetForwardVector();
+		float Dot = AfterCameraForward | PreCameraForward;
+		FVector CharacterUp = GetActorUpVector();
+		float DeltaQuatAcos = FMath::Acos(Dot);
+		float DeltaAngle = DeltaQuatAcos * 57.2958 * -1.f;
+
+		float OldPollDot = OldPollUp | PreCameraForward;
+		float NewPollDot = OldPollUp | AfterCameraForward;
+		if (NewPollDot < OldPollDot)
+		{
+			DeltaAngle *= -1.f;
+		}
+
+		//we save the pitch difference back into RotationOffset and then recieve the change next tick. 
+		//this is to avoid exceeding pitch limits or having to enforce them twice (they are already enforced by PlayerCameraManager->ProcessViewRotation
+		//on RotationOffset 
+		RotationOffset.Pitch += DeltaAngle;
+
+		// add the offset last to ensure gravity changes are the only reason for aim being thrown off
+		
+		
+	}
+	else
+	{
+		const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(CapsuleUp, CameraPoll->GetForwardVector());
+		CameraPoll->SetWorldRotation(FQuat::Slerp(CameraPoll->GetComponentRotation().Quaternion(), RotationMatrix.Rotator().Quaternion(), RotationLerpRate * DeltaTime));
+	}
+	FirstPersonCameraComponent->SetRelativeRotation(FRotator(NewCameraPitch, 0.f, 0.f));
+	CameraPoll->AddLocalRotation(DeltaQuatYaw);
+	OldOffsetAndOutControlRot = FirstPersonCameraComponent->GetComponentRotation();
+}
+
 
 void AALSBaseCharacter::Gravitate(FVector SourceLocation, FVector HitLocation, float Direction, float Strength)
 {
@@ -545,6 +607,10 @@ void AALSBaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+	FPostProcessSettings VariableName;
+	VariableName.bOverride_MotionBlurAmount = true;
+	FirstPersonCameraComponent->PostProcessSettings = VariableName;
+
 	StunTimer = MaxStunTimerValue;
 	// If we're in networked game, disable curved movement
 	bDisableCurvedMovement = !IsNetMode(ENetMode::NM_Standalone);
@@ -598,8 +664,8 @@ void AALSBaseCharacter::BeginPlay()
 	
 
 	
-	CapsuleSlerper->SetWorldLocation(GetCapsuleComponent()->GetComponentLocation());
-	CapsuleSlerper->SetWorldRotation(GetCapsuleComponent()->GetComponentRotation().Quaternion());
+	CameraPoll->SetWorldLocation(CapsuleComponent->GetComponentLocation());
+	CameraPoll->SetWorldRotation(CapsuleComponent->GetComponentRotation().Quaternion());
 
 	RotationMode = EALSRotationMode::LookingDirection;
 
@@ -609,7 +675,7 @@ void AALSBaseCharacter::BeginPlay()
 	//SpawnWeapon(EWeaponType::SingleShotTestGun);
 	
 }
-void AALSBaseCharacter::PassPressureToHud()
+void AALSBaseCharacter::PassGasToHud()
 {
 	
 	if (IsLocallyControlled())
@@ -617,6 +683,7 @@ void AALSBaseCharacter::PassPressureToHud()
 		AALSPlayerController* PC = Cast<AALSPlayerController>(Controller);
 		AAAADHUD* HUD = PC->GetHUD<AAAADHUD>();
 		HUD->CurrentRoomAirPressure = &ClientCurrentRoomPressurePointer;
+		//HUD->GasSamplePointer = &
 		UE_LOG(LogClass, Error, TEXT("PassPressureToHud"));
 	}
 }
@@ -649,6 +716,9 @@ void AALSBaseCharacter::SetGravityDirection(FVector Direction)
 void AALSBaseCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	
+	
 
 	if (HasAuthority())
 	{
@@ -717,11 +787,13 @@ void AALSBaseCharacter::Tick(float DeltaTime)
 		FVector PlayerVelocity = GetMyMovementComponent()->Velocity;
 		float VelocityDot = WindDirection | UKismetMathLibrary::GetDirectionUnitVector(FVector::ZeroVector, FVector::ZeroVector + PlayerVelocity);
 		FVector RidingWindForce = WindForce - (PlayerVelocity.Size() * WindDirection * FMath::Clamp(VelocityDot, 0.f, 1.f));
-		DrawDebugLine(this->GetWorld(), GetActorLocation(), GridSample.Location, FColor::Red, false, .01f, 0, 4.f);
+		//DrawDebugLine(this->GetWorld(), GetActorLocation(), GridSample.Location, FColor::Red, false, .01f, 0, 4.f);
 		
 		GetMyMovementComponent()->AddForce(RidingWindForce);
 
 		DrawDebugDirectionalArrow(GetWorld(), GridSample.Location, GridSample.Location + (RidingWindForce.Normalize() * 100.f), 50.f, FColor::Purple, false, .25f, 0, 5.f);
+		//UGameplayStatics::GetViewProjectionMatrix(CameraView, UnusedViewMatrix, UnusedProjectionMatrix, ViewProjectionMatrix);
+		//DrawDebugFrustum(GetWorld(), FirstPersonCameraComponent->matrix)
 	}
 	if (DrawDebugStuff)
 	{
@@ -739,56 +811,9 @@ void AALSBaseCharacter::Tick(float DeltaTime)
 		);
 		DrawDebugLine(this->GetWorld(), GetActorLocation(), GetActorLocation() + WindForce, FColor::Red, false, .01f, 0, 4.f);
 	}
-	//FVector TestMassWindForce = WindForce / 100.f;
-	 //UE_LOG(LogClass, Warning, TEXT("basecharacter Tick WindForce = %s"), *WindForce.ToString());
-	
-	//if (GetLocalRole() == ROLE_SimulatedProxy)
-	//{
-		//GetMesh()->AddForceToAllBodiesBelow(GravityDirection * 980.f, FName(TEXT("Clavicle_r")), true, true);
-		//GetMesh()->AddForceToAllBodiesBelow(GravityDirection * 980.f, FName(TEXT("Clavicle_l")), true, true);
-	//}
-
-	/**
-	if (!GetMyMovementComponent()->CurrentFloor.IsWalkableFloor())
-	{
-		if (GetLocalRole() == ROLE_SimulatedProxy)
-		{
-			UE_LOG(LogClass, Warning, TEXT(" ROLE_SimulatedProxy !IsWalkableFloor"));
-		}
-
-		if (GetLocalRole() == ROLE_AutonomousProxy)
-		{
-			UE_LOG(LogClass, Warning, TEXT(" ROLE_AutonomousProxy !IsWalkableFloor"));
-		}
-
-		if (GetLocalRole() == ROLE_Authority)
-		{
-			UE_LOG(LogClass, Warning, TEXT(" ROLE_Authority !IsWalkableFloor"));
-		}
-	}
-	if (GetCharacterMovement()->MovementMode == MOVE_Falling)
-	{
-		if (GetLocalRole() == ROLE_SimulatedProxy)
-		{
-			UE_LOG(LogClass, Warning, TEXT(" ROLE_SimulatedProxy FALLING"));
-		}
-
-		if (GetLocalRole() == ROLE_AutonomousProxy)
-		{
-			UE_LOG(LogClass, Warning, TEXT(" ROLE_AutonomousProxy FALLING"));
-		}
-
-		if (GetLocalRole() == ROLE_Authority)
-		{
-			UE_LOG(LogClass, Warning, TEXT(" ROLE_Authority FALLING"));
-		}
-	}
-	**/
-	//GetMesh()->GetPhysicsAsset()->gravitydire
-	
-	//CapsuleSlerper->SetWorldRotation(GetCapsuleComponent()->GetComponentRotation().Quaternion());
 	
 	
+
 	// Set required values
 	SetEssentialValues(DeltaTime);
 
@@ -814,48 +839,13 @@ void AALSBaseCharacter::Tick(float DeltaTime)
 
 	
 
-	//UE_LOG(LogTemp, Log, TEXT("Character overlapNum: %d"), Overlaps.Num());
+
 	// Cache values
 	PreviousVelocity = GetVelocity();
 	PreviousAimYaw = AimingRotation.Yaw;
 
 	DrawDebugSpheres();
-	FVector CapsuleForward = GetCapsuleComponent()->GetForwardVector();
-	FVector CapsuleUp = GetCapsuleComponent()->GetUpVector();
-	//FVector Start = GetCapsuleComponent()->GetComponentLocation() + (CapsuleForward * 20) + (CapsuleUp * 50);
-	//FVector End = GetCapsuleComponent()->GetComponentLocation() + (CapsuleForward * 70) + (CapsuleUp * 50);
-	//FVector CapsuleLocationMinusUp = 
-	CapsuleSlerper->SetWorldLocation(GetCapsuleComponent()->GetComponentLocation());
-	//DrawDebugLine(this->GetWorld(), Start, End, FColor::Green, false, .1f, 0, 4.f);
 
-	
-	//Rotate CapsuleSlerper According To Capsule
-	const FQuat CapsuleRotation = CapsuleSlerper->GetComponentQuat();
-	const FVector QuatVector(CapsuleRotation.X, CapsuleRotation.Y, CapsuleRotation.Z);
-
-	//FVector SlerperX = FVector(FMath::Square(CapsuleRotation.W) - QuatVector.SizeSquared(), CapsuleRotation.Z * CapsuleRotation.W * 2.0f,
-		//CapsuleRotation.Y * CapsuleRotation.W * -2.0f) + QuatVector * (CapsuleRotation.X * 2.0f);
-
-	if ((CapsuleUp | CapsuleSlerper->GetUpVector()) >= THRESH_NORMALS_ARE_PARALLEL)
-	{
-		//UE_LOG(LogTemp, Warning, TEXT("Slerper Capsule Dot: %f"), (CapsuleUp | CapsuleSlerper->GetUpVector()));
-	}
-	else
-	{
-		const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(CapsuleUp, CapsuleSlerper->GetForwardVector());
-		CapsuleSlerper->SetWorldRotation(FQuat::Slerp(CapsuleSlerper->GetComponentRotation().Quaternion(), RotationMatrix.Rotator().Quaternion(), RotationLerpRate * DeltaTime));
-
-	}
-	//const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(CapsuleUp, CapsuleSlerper->GetForwardVector());
-	//LocalCorrectedRight = RotationMatrix.ToQuat().GetRightVector();
-		
-	
-
-	
-	//UE_LOG(LogTemp, Warning, TEXT("Camera Rotation: %s"), *FirstPersonCameraComponent->GetComponentRotation().ToString());
-	//UE_LOG(LogTemp, Log, TEXT("Control Rotation: %s"), *GetControlRotation().ToString());
-	//if (!HasAuthority())
-	
 	
 	
 }
@@ -881,7 +871,7 @@ void AALSBaseCharacter::RagdollStart()
 	
 
 	// Step 2: Disable capsule collision and enable mesh physics simulation starting from the pelvis.
-	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	CapsuleComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	GetMesh()->SetCollisionObjectType(ECC_PhysicsBody);
 	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	GetMesh()->SetAllBodiesBelowSimulatePhysics(FName(TEXT("Pelvis")), true, true);
@@ -930,7 +920,7 @@ void AALSBaseCharacter::RagdollEnd()
 	}
 
 	// Step 3: Re-Enable capsule collision, and disable physics simulation on the mesh.
-	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	CapsuleComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	GetMesh()->SetCollisionObjectType(ECC_Pawn);
 	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	GetMesh()->SetAllBodiesSimulatePhysics(false);
@@ -1369,7 +1359,7 @@ UCameraComponent* AALSBaseCharacter::GetFirstPersonCamera()
 
 UStaticMeshComponent* AALSBaseCharacter::GetCameraPoll()
 {
-	return CapsuleSlerper;
+	return CameraPoll;
 }
 
 FRotator AALSBaseCharacter::GetFirstPersonCameraRotation()
@@ -1461,7 +1451,7 @@ void AALSBaseCharacter::SetActorLocationDuringRagdoll(float DeltaTime)
 	// Trace downward from the target location to offset the target location,
 	// preventing the lower half of the capsule from going through the floor when the ragdoll is laying on the ground.
 	const FVector TraceVect(TargetRagdollLocation.X, TargetRagdollLocation.Y,
-	                        TargetRagdollLocation.Z - GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
+	                        TargetRagdollLocation.Z - CapsuleComponent->GetScaledCapsuleHalfHeight());
 
 	FCollisionQueryParams Params;
 	Params.AddIgnoredActor(this);
@@ -1476,7 +1466,7 @@ void AALSBaseCharacter::SetActorLocationDuringRagdoll(float DeltaTime)
 	if (bRagdollOnGround)
 	{
 		const float ImpactDistZ = FMath::Abs(HitResult.ImpactPoint.Z - HitResult.TraceStart.Z);
-		NewRagdollLoc.Z += GetCapsuleComponent()->GetScaledCapsuleHalfHeight() - ImpactDistZ + 2.0f;
+		NewRagdollLoc.Z += CapsuleComponent->GetScaledCapsuleHalfHeight() - ImpactDistZ + 2.0f;
 	}
 	if (!IsLocallyControlled())
 	{
@@ -1650,14 +1640,14 @@ void AALSBaseCharacter::SetEssentialValues(float DeltaTime)
 	{
 		//Replicate the slerper and camera locations
 		Server_SetCameraRotation(FirstPersonCameraComponent->GetComponentRotation());
-		Server_SetPitchAndYaw(DeltaPitch, DeltaYaw, CapsuleSlerper->GetComponentRotation());
+		Server_SetPitchAndYaw(DeltaPitch, DeltaYaw, CameraPoll->GetComponentRotation());
 	}
 	if (GetLocalRole() != ROLE_SimulatedProxy)
 	{
 		//CameraRotation = FirstPersonCameraComponent->GetComponentRotation();
 		ReplicatedCurrentAcceleration = GetCharacterMovement()->GetCurrentAcceleration();
 		ReplicatedControlRotation = GetControlRotation();
-		//ReplicatedQuatYawRotation = CapsuleSlerper->GetComponentRotation();
+		//ReplicatedQuatYawRotation = CameraPoll->GetComponentRotation();
 		EasedMaxAcceleration = GetCharacterMovement()->GetMaxAcceleration();
 	}
 
@@ -1669,10 +1659,10 @@ void AALSBaseCharacter::SetEssentialValues(float DeltaTime)
 	}
 	if (IsLocallyControlled())
 	{
-		const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(GetCapsuleComponent()->GetUpVector(), CapsuleSlerper->GetForwardVector());
+		const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(CapsuleComponent->GetUpVector(), CameraPoll->GetForwardVector());
 		//LocalCorrectedRight = RotationMatrix.ToQuat().GetRightVector();
 
-		//ReplicatedQuatYawRotation = CapsuleSlerper->GetComponentRotation();
+		//ReplicatedQuatYawRotation = CameraPoll->GetComponentRotation();
 		ReplicatedQuatYawRotation = RotationMatrix.Rotator();
 		CameraRotation = FirstPersonCameraComponent->GetComponentRotation();
 	}
@@ -1814,7 +1804,7 @@ void AALSBaseCharacter::UpdateGroundedRotation(float DeltaTime)
 					float DeltaQuatAcos = FMath::Acos(DeltaQuatDot);
 					float DeltaQuatYaw = DeltaQuatAcos * 57.2958;
 
-					float RightDot = FVector::DotProduct(QuatYawForward, GetCapsuleComponent()->GetRightVector());
+					float RightDot = FVector::DotProduct(QuatYawForward, CapsuleComponent->GetRightVector());
 					//Do the opposite of Limit rotation since we are subtracting this rotation from our current forward control rotation
 					if (RightDot < 0)
 					{
@@ -1830,7 +1820,7 @@ void AALSBaseCharacter::UpdateGroundedRotation(float DeltaTime)
 					YawValue = YawOffsetCurveVal;
 				}
 				FQuat DeltaQuatYaw = FRotator(0.f, YawValue, 0.f).Quaternion();
-				const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(GetCapsuleComponent()->GetUpVector(), CapsuleSlerper->GetForwardVector());
+				const FMatrix RotationMatrix = FRotationMatrix::MakeFromZX(CapsuleComponent->GetUpVector(), CameraPoll->GetForwardVector());
 				FRotator OutRotation = (RotationMatrix.ToQuat() * DeltaQuatYaw).Rotator();
 				SmoothCharacterRotationYaw(1.f, ReplicatedQuatYawRotation, 500.f, GroundedRotationRate, DeltaTime);
 			}
@@ -1978,7 +1968,7 @@ void AALSBaseCharacter::MantleStart(float MantleHeight, const FALSComponentAndTr
 bool AALSBaseCharacter::MantleCheck(const FALSMantleTraceSettings& TraceSettings, EDrawDebugTrace::Type DebugType)
 {
 	// Step 1: Trace forward to find a wall / object the character cannot walk on.
-	const FVector& CapsuleBaseLocation = UALSMathLibrary::GetCapsuleBaseLocation(2.0f, GetCapsuleComponent());
+	const FVector& CapsuleBaseLocation = UALSMathLibrary::GetCapsuleBaseLocation(2.0f, CapsuleComponent);
 	FVector TraceStart = CapsuleBaseLocation + GetPlayerMovementInput() * -30.0f;
 	TraceStart.Z += (TraceSettings.MaxLedgeHeight + TraceSettings.MinLedgeHeight) / 2.0f;
 	const FVector TraceEnd = TraceStart + (GetPlayerMovementInput() * TraceSettings.ReachDistance);
@@ -2038,8 +2028,8 @@ bool AALSBaseCharacter::MantleCheck(const FALSMantleTraceSettings& TraceSettings
 	// Step 3: Check if the capsule has room to stand at the downward trace's location.
 	// If so, set that location as the Target Transform and calculate the mantle height.
 	const FVector& CapsuleLocationFBase = UALSMathLibrary::GetCapsuleLocationFromBase(
-		DownTraceLocation, 2.0f, GetCapsuleComponent());
-	const bool bCapsuleHasRoom = UALSMathLibrary::CapsuleHasRoomCheck(GetCapsuleComponent(), CapsuleLocationFBase, 0.0f,
+		DownTraceLocation, 2.0f, CapsuleComponent);
+	const bool bCapsuleHasRoom = UALSMathLibrary::CapsuleHasRoomCheck(CapsuleComponent, CapsuleLocationFBase, 0.0f,
 	                                                                  0.0f);
 
 	if (!bCapsuleHasRoom)
@@ -2270,11 +2260,11 @@ void AALSBaseCharacter::LimitRotation(float AimYawMin, float AimYawMax, float In
 {
 	// Prevent the character from rotating past a certain angle.
 	FVector QuatYawForward = UKismetMathLibrary::GetForwardVector(QuatYawRotation);
-	float DeltaQuatDot = FVector::DotProduct(QuatYawForward, GetCapsuleComponent()->GetForwardVector());
+	float DeltaQuatDot = FVector::DotProduct(QuatYawForward, CapsuleComponent->GetForwardVector());
 	float DeltaQuatAcos = FMath::Acos(DeltaQuatDot);
 	float DeltaQuatYaw = DeltaQuatAcos * 57.2958;
 
-	float RightDot = FVector::DotProduct(QuatYawForward, GetCapsuleComponent()->GetRightVector());
+	float RightDot = FVector::DotProduct(QuatYawForward, CapsuleComponent->GetRightVector());
 	//if the  dot product between Quatyaw rotation and actor right vector is greater than 0, we rotate right. 
 	if (RightDot > 0)
 	{
@@ -2299,9 +2289,8 @@ void AALSBaseCharacter::LimitRotation(float AimYawMin, float AimYawMax, float In
 
 void AALSBaseCharacter::GetControlForwardRightVector(FVector& Forward, FVector& Right) const
 {
-	const FRotator ControlRot(0.0f, AimingRotation.Yaw, 0.0f);
-	Forward = GetInputAxisValue("MoveForward/Backwards") * CapsuleSlerper->GetRightVector();
-	Right = GetInputAxisValue("MoveRight/Left") * CapsuleSlerper->GetForwardVector();
+	Forward = GetInputAxisValue("MoveForward/Backwards") * CameraPoll->GetRightVector();
+	Right = GetInputAxisValue("MoveRight/Left") * CameraPoll->GetForwardVector();
 }
 
 void AALSBaseCharacter::OnFire()
@@ -2390,7 +2379,7 @@ void AALSBaseCharacter::PlayerForwardMovementInput(float Value)
 		//const float Scale = UALSMathLibrary::FixDiagonalGamepadValues(Value, GetInputAxisValue("MoveRight/Left")).Key;
 		//const FRotator DirRotator(0.0f, AimingRotation.Yaw, 0.0f);
 		//AddMovementInput(UKismetMathLibrary::GetForwardVector(DirRotator), Scale);
-		AddMovementInput(CapsuleSlerper->GetForwardVector(), Value);
+		AddMovementInput(CameraPoll->GetForwardVector(), Value);
 	}
 	if (MovementState == EALSMovementState::InAir)
 	{
@@ -2413,7 +2402,7 @@ void AALSBaseCharacter::PlayerRightMovementInput(float Value)
 		//	.Value;
 		//const FRotator DirRotator(0.0f, AimingRotation.Yaw, 0.0f);
 		//AddMovementInput(UKismetMathLibrary::GetRightVector(DirRotator), Scale);
-		AddMovementInput(CapsuleSlerper->GetRightVector(), Value);
+		AddMovementInput(CameraPoll->GetRightVector(), Value);
 		//AddMovementInput(GetActorRightVector(), Value);
 	}
 	
@@ -2668,8 +2657,10 @@ void AALSBaseCharacter::JumpPressedAction()
 {
 	// Jump Action: Press "Jump Action" to end the ragdoll if ragdolling, check for a mantle if grounded or in air,
 	// stand up if crouching, or jump if standing.
-
 	
+
+BlurBool = !BlurBool;
+
 	if (MovementAction == EALSMovementAction::None)
 	{
 		if (MovementState == EALSMovementState::Grounded)
@@ -2699,6 +2690,7 @@ void AALSBaseCharacter::JumpPressedAction()
 			ReplicatedRagdollEnd();
 		}
 	}
+	
 }
 
 void AALSBaseCharacter::EscMenuPressedAction()
@@ -2745,7 +2737,7 @@ void AALSBaseCharacter::SprintReleasedAction()
 void AALSBaseCharacter::AimPressedAction()
 {
 	// AimAction: Hold "AimAction" to enter the aiming mode, release to revert back the desired rotation mode.
-	SetRotationMode(EALSRotationMode::Aiming);
+	//SetRotationMode(EALSRotationMode::Aiming);
 
 	AALSPlayerController* MyPC = Cast<AALSPlayerController>(Controller);
 	if (MyPC)
@@ -2967,7 +2959,7 @@ void AALSBaseCharacter::ZeroGravTest()
 	
 
 	/**
-	//GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	//CapsuleComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	GetMesh()->SetCollisionObjectType(ECC_PhysicsBody);
 	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	
@@ -2991,12 +2983,12 @@ void AALSBaseCharacter::UpdateDeltaPitch()
 	
 		FVector PitchForward = UKismetMathLibrary::GetForwardVector(ReplicatedControlRotation);
 		FVector SlerperForward = UKismetMathLibrary::GetForwardVector(ReplicatedQuatYawRotation);
-		FVector CharacterDown = GetActorUpVector();
+		FVector CharacterUp = GetActorUpVector();
 		float DeltaQuatDot = FVector::DotProduct(PitchForward, SlerperForward);
 		float DeltaQuatAcos = FMath::Acos(DeltaQuatDot);
 		float DeltaQuatPitch = DeltaQuatAcos * 57.2958;
 
-		float UpDot = FVector::DotProduct(PitchForward, CharacterDown);
+		float UpDot = FVector::DotProduct(PitchForward, CharacterUp);
 		
 		if (UpDot < 0)
 		{

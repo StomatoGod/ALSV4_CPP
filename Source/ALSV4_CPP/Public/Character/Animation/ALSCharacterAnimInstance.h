@@ -136,8 +136,9 @@ private:
 
 	void ResetIKOffsets(float DeltaSeconds);
 
-	void SetFootOffsets(float DeltaSeconds, FName EnableFootIKCurve, FName IKFootBone, FName RootBone,
-		FVector& CurLocationTarget, FVector& CurLocationOffset, FRotator& CurRotationOffset, bool LeftFoot);
+	void SetFootOffsets(float DeltaSeconds, FName EnableFootIKCurve, FName IKFootBone,
+		FName RootBone, FVector& CurLocationTarget, FVector& CurLocationOffset,
+		FRotator& CurRotationOffset, float GravityAngle, FVector GravityRotationAxis, bool AbnormalGrav);
 
 	/** Grounded */
 

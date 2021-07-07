@@ -145,6 +145,7 @@ void AWeap_VoodooGun::HandleGravityGunOnServer(float DeltaTime)
 		if (HitActor == CachedPhysicsActor)
 		{
 				CachedPhysicsInterface->Gravitate(StartTrace + (ShootDir * 100.f), Hit.Location, 1.f, GravityGunStrength);
+
 		}
 		else
 		{
@@ -206,6 +207,7 @@ void AWeap_VoodooGun::EntangleObject(AActor* HitObject)
 	float DomValue = 0.f;
 	for (int32 CurrentIndex = 0; CurrentIndex < EntangledActors.Num(); CurrentIndex++)
 	{
+		
 		if (EntangledActors[CurrentIndex]->IsA<APhysicsObject>())
 		{
 			CastSkips[CurrentIndex].PhysicsObject = Cast<APhysicsObject>(EntangledActors[CurrentIndex]);

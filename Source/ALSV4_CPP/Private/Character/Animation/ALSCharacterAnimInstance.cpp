@@ -296,14 +296,16 @@ void UALSCharacterAnimInstance::UpdateFootIK(float DeltaSeconds)
 
 	// Update Foot Locking values.
 
-	/**
-	SetFootLocking(DeltaSeconds, FName(TEXT("Enable_FootIK_L")), FName(TEXT("FootLock_L")),
-		FName(TEXT("ik_foot_l")), FootIKValues.FootLock_L_Alpha, FootIKValues.UseFootLockCurve_L,
-		FootIKValues.FootLock_L_Location, FootIKValues.FootLock_L_Rotation);
-	SetFootLocking(DeltaSeconds, FName(TEXT("Enable_FootIK_R")), FName(TEXT("FootLock_R")),
-		FName(TEXT("ik_foot_r")), FootIKValues.FootLock_R_Alpha, FootIKValues.UseFootLockCurve_R,
-		FootIKValues.FootLock_R_Location, FootIKValues.FootLock_R_Rotation);
-		**/
+	
+		SetFootLocking(DeltaSeconds, FName(TEXT("Enable_FootIK_L")), FName(TEXT("FootLock_L")),
+			FName(TEXT("ik_foot_l")), FootIKValues.FootLock_L_Alpha, FootIKValues.UseFootLockCurve_L,
+			FootIKValues.FootLock_L_Location, FootIKValues.FootLock_L_Rotation);
+		SetFootLocking(DeltaSeconds, FName(TEXT("Enable_FootIK_R")), FName(TEXT("FootLock_R")),
+			FName(TEXT("ik_foot_r")), FootIKValues.FootLock_R_Alpha, FootIKValues.UseFootLockCurve_R,
+			FootIKValues.FootLock_R_Location, FootIKValues.FootLock_R_Rotation);
+	
+	
+		
 	if (MovementState.InAir())
 	{
 		// Reset IK Offsets if In Air
@@ -312,13 +314,25 @@ void UALSCharacterAnimInstance::UpdateFootIK(float DeltaSeconds)
 	}
 	else if (!MovementState.Ragdoll())
 	{
+		float DotAngle = 0.f;
+		FVector RotationAxis = FVector::ZeroVector;
+		bool AbnormalGravity = (Character->GetActorUpVector() | FVector(0.f, 0.f, 1.f)) < THRESH_NORMALS_ARE_PARALLEL;
+		if (AbnormalGravity)
+		{
+			float Dot = Character->GetActorUpVector() | FVector(0.f, 0.f, 1.f);
+			float DotAcos = FMath::Acos(Dot);
+			 DotAngle = DotAcos * 57.2958 * -1.f;
+			//UKismetMathLibrary::GetRightVector(Character->GetActorUpVector().ToOrientationRotator());
+			//FVector RotationAxis = FVector(1.f, 0.f, 0.f);
+			 RotationAxis = UKismetMathLibrary::GetRightVector(Character->GetActorUpVector().ToOrientationRotator());
+		}
 		// Update all Foot Lock and Foot Offset values when not In Air
 		SetFootOffsets(DeltaSeconds, FName(TEXT("Enable_FootIK_L")), FName(TEXT("ik_foot_l")), FName(TEXT("root")),
 			FootOffsetLTarget,
-			FootIKValues.FootOffset_L_Location, FootIKValues.FootOffset_L_Rotation, true);
+			FootIKValues.FootOffset_L_Location, FootIKValues.FootOffset_L_Rotation, DotAngle, RotationAxis, AbnormalGravity);
 		SetFootOffsets(DeltaSeconds, FName(TEXT("Enable_FootIK_R")), FName(TEXT("ik_foot_r")), FName(TEXT("root")),
 			FootOffsetRTarget,
-			FootIKValues.FootOffset_R_Location, FootIKValues.FootOffset_R_Rotation, false);
+			FootIKValues.FootOffset_R_Location, FootIKValues.FootOffset_R_Rotation, DotAngle, RotationAxis, AbnormalGravity);
 		SetPelvisIKOffset(DeltaSeconds, FootOffsetLTarget, FootOffsetRTarget);
 	}
 }
@@ -473,7 +487,7 @@ void UALSCharacterAnimInstance::ResetIKOffsets(float DeltaSeconds)
 
 void UALSCharacterAnimInstance::SetFootOffsets(float DeltaSeconds, FName EnableFootIKCurve, FName IKFootBone,
 	FName RootBone, FVector& CurLocationTarget, FVector& CurLocationOffset,
-	FRotator& CurRotationOffset, bool LeftFoot)
+	FRotator& CurRotationOffset, float GravityAngle, FVector GravityRotationAxis, bool AbnormalGrav)
 {
 	// Only update Foot IK offset values if the Foot IK curve has a weight. If it equals 0, clear the offset values.
 	if (GetCurveValue(EnableFootIKCurve) <= 0)
@@ -514,15 +528,15 @@ void UALSCharacterAnimInstance::SetFootOffsets(float DeltaSeconds, FName EnableF
 	
 		// Step 1.2: Calculate the Rotation offset by getting the Atan2 of the Impact Normal 
 		//and then to accomodate different gravity directions RotateAngleAxis the result by the  DotAngle of the character's current up vector and the normal Z up
-		if ((Character->GetActorUpVector() | FVector(0.f,0.f,1.f)) < THRESH_NORMALS_ARE_PARALLEL)
-		{	
-			float Dot = Character->GetActorUpVector() | FVector(0.f, 0.f, 1.f);
-			float DotAcos = FMath::Acos(Dot);
-			float DotAngle = DotAcos * 57.2958 * -1.f;
-			//GEngine->AddOnScreenDebugMessage(-10, 20.f, FColor::Yellow, FString::Printf(TEXT("AnimInstance Dot Angle: %f"), DotAngle));
-			ImpactNormal = ImpactNormal.RotateAngleAxis(DotAngle, FVector(1.f, 0.f, 0.f));
+	
+		if (AbnormalGrav)
+		{
+			
+			ImpactNormal = ImpactNormal.RotateAngleAxis(GravityAngle, GravityRotationAxis);
 		}
-		
+			
+			//DrawDebugLine(this->GetWorld(), ImpactPoint, ImpactPoint + ImpactNormalWrong * 100.f, FColor::Red, false, .01f, 0, 5.f);
+			//DrawDebugLine(this->GetWorld(), ImpactPoint, ImpactPoint + ImpactNormal * 100.f, FColor::Blue, false, .01f, 0, 5.f);
 		TargetRotOffset.Pitch = -FMath::RadiansToDegrees(FMath::Atan2(ImpactNormal.X, ImpactNormal.Z));
 		TargetRotOffset.Roll = FMath::RadiansToDegrees(FMath::Atan2(ImpactNormal.Y, ImpactNormal.Z));
 	}

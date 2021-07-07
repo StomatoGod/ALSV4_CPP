@@ -13,6 +13,7 @@
 #include "ALSPlayerController.generated.h"
 
 class AALSBaseCharacter;
+//class UCapsuleComponent;
 
 /**
  * Player controller class
@@ -26,14 +27,20 @@ class ALSV4_CPP_API AALSPlayerController : public APlayerController
 
 public:
 	void OnRestartPawn(APawn* NewPawn);
-	FRotator RotationInputStored;
+	FRotator RotationOffset;
+	FRotator OldRotationOffset;
 	/** get gode mode cheat */
 	bool HasGodMode() const;
+	virtual void UpdateRotation(float DeltaTime) override;
+	float PitchOffsetMax; 
+	float PitchOffsetMin; 
+	//virtual void UpdateCameraManager(float DeltaSeconds) override;
 
 private:
 	/** Main character reference */
 	UPROPERTY()
 	AALSBaseCharacter* PossessedCharacter = nullptr;
+
 	/** god mode cheat */
 	UPROPERTY(Transient)
 		uint8 bGodMode : 1;

@@ -17,6 +17,8 @@ void AALSPlayerController::OnRestartPawn(APawn* NewPawn)
 	PossessedCharacter = Cast<AALSBaseCharacter>(NewPawn);
 	check(PossessedCharacter);
 
+	
+
 	// Call "OnPossess" in Player Camera Manager when possessing a pawn
 
 	/**
@@ -30,10 +32,9 @@ void AALSPlayerController::OnRestartPawn(APawn* NewPawn)
 	if (CastedMgr)
 	{
 		CastedMgr->SetViewTarget(GetPawn());
+
 	}
 }
-
-
 void AALSPlayerController::PlayerTick(float DeltaTime)
 {
 	Super::PlayerTick(DeltaTime);
@@ -46,12 +47,38 @@ void AALSPlayerController::PlayerTick(float DeltaTime)
 		//UpdateMouseLook(DeltaTime);
 
 		//	UE_LOG(LogClass, Error, TEXT(" RotationInput.YAW: %f"), RotationInput.Yaw);
+		//UpdateRotation(DeltaTime);
 	}
 	//PlayerCameraManager->bUseClientSideCameraUpdates = true;
 	//bUseClientSideCameraUpdates = true;
 }
 
+
+
 bool AALSPlayerController::HasGodMode() const
 {
 	return bGodMode;
 }
+
+void AALSPlayerController::UpdateRotation(float DeltaTime)
+{
+	// Calculate Delta to be applied on ViewRotation
+	FRotator DeltaRot(RotationInput);
+
+	FRotator OldOffsetAndOutControlRot = RotationOffset;
+
+	if (PlayerCameraManager)
+	{
+		PlayerCameraManager->ProcessViewRotation(DeltaTime, RotationOffset, DeltaRot);
+	}
+	
+	PossessedCharacter->UpdateCameraRotation(RotationOffset, OldOffsetAndOutControlRot, DeltaTime);
+	
+	SetControlRotation(OldOffsetAndOutControlRot);
+	
+	
+
+
+	
+}
+

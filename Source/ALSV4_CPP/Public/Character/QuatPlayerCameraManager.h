@@ -21,4 +21,5 @@ class ALSV4_CPP_API AQuatPlayerCameraManager : public APlayerCameraManager
 		virtual void RotateComponents(FRotator DeltaRotation) override;
 
 		void UpdateViewlRotationWithCameraRotation(FRotator& OutViewRotation) override;
+
 };

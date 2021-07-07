@@ -49,8 +49,9 @@ class ALSV4_CPP_API AALSBaseCharacter : public ACharacter, public IPhysicsInterf
 		class UCameraComponent* FirstPersonCameraComponent;
 
 	UPROPERTY(VisibleAnywhere)
-		class UStaticMeshComponent* CapsuleSlerper;
-
+		class UStaticMeshComponent* CameraPoll;
+	
+		UCapsuleComponent* CapsuleComponent;
 	/** get max health */
 	int32 GetMaxHealth() const;
 
@@ -63,11 +64,15 @@ class ALSV4_CPP_API AALSBaseCharacter : public ACharacter, public IPhysicsInterf
 
 	void EquipWeapon(class AWeapon* Weapon);
 
-	
+	float Blur = 0.f;
+	bool BlurBool = false;
 
 public:
 	AALSBaseCharacter(const FObjectInitializer& ObjectInitializer);
 
+	void UpdateCameraRotation(FRotator &RotationOffset, FRotator& OldOffsetAndOutControlRot, float DeltaTime);
+	
+	
 
 	void ZeroGravTest();
 	void ReturnToGravity();
@@ -101,10 +106,13 @@ public:
 	void SetPredictedRoomID(int32 NewRoomID);
 	void SetCurrentRoomID(int32 NewRoomID);
 	void SetCurrentRoomIDToPredicted();
-	void RebindPressureReadout(float &NewAddress);
+	FGas GasSamplePlaceholder = FGas::DefaultAtmosphereComposition;
+	FGas* GasSample = &GasSamplePlaceholder;
+	class AAirCurrent* OverlappingAirCurrent;
 	float PressurePlaceholder = 1.f;
 	float* ClientCurrentRoomPressurePointer = &PressurePlaceholder;
-	void PassPressureToHud();
+	// laugh out loud oh my god
+	void PassGasToHud();
 	FVecGrav VecGravSample;
 	FGridSample GridSample;
 	/** Called on the actor right before replication occurs */
